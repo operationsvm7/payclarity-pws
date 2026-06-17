@@ -375,88 +375,37 @@ export function CsvImportPanel() {
 export function SetupWizard({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = useT();
-  const [step, setStep] = useState(s.wizard.currentStep);
+  const [step, setStep] = useState(0);
   const [agentDraft, setAgentDraft] = useState({ name: "", email: "" });
   const [financeDraft, setFinanceDraft] = useState({
     name: "", defaultFee: 0.05, dealerFee: 0, adminFee: 0,
   });
 
-  const steps = [
-    t("wiz_step_company"),
-    t("wiz_step_branding"),
-    t("wiz_step_team"),
-    t("wiz_step_plan"),
-    t("wiz_step_finance"),
-    t("wiz_step_splits"),
-    t("wiz_step_advances"),
-    t("wiz_step_test"),
-  ];
+  const steps = ["Company", "Team", "Finance Companies"];
 
-  const goTo = (n: number) => {
-    setStep(n);
-    s.setWizardStep(n);
-  };
-  const next = () => {
-    s.markWizardStepDone(step);
-    goTo(Math.min(steps.length - 1, step + 1));
-  };
+  const goTo = (n: number) => setStep(n);
+  const next = () => goTo(Math.min(steps.length - 1, step + 1));
   const back = () => goTo(Math.max(0, step - 1));
 
   const finish = () => {
-    s.markWizardStepDone(step);
     s.completeWizard();
-    toast.success(t("wiz_ready"));
+    toast.success("Setup complete! You're ready to go.");
     onClose();
-  };
-
-  const generateTest = () => {
-    let inv = s.invoices[0];
-    if (!inv) {
-      s.loadDemoData();
-      inv = useStore.getState().invoices[0];
-    }
-    if (!inv) return toast.error("No invoice to preview");
-    const fcs = useStore.getState().financeCompanies;
-    const c = calcInvoice(inv, fcs);
-    const agentName = useStore.getState().agents.find((a) => a.id === inv!.agentId)?.name || "—";
-    buildSaleAndDownload(c, useStore.getState().company, agentName);
-    toast.success("Test PDF generated");
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl p-6 shadow-elegant max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-xl p-6 shadow-elegant max-h-[90vh] overflow-y-auto">
         <div className="flex items-center gap-2 mb-1">
           <Wand2 className="w-5 h-5 text-accent" />
-          <h2 className="text-lg font-semibold">{t("wiz_title")}</h2>
+          <h2 className="text-lg font-semibold">Quick Setup</h2>
         </div>
         <p className="text-xs text-muted-foreground mb-4">
-          {t("wiz_step")} {step + 1} {t("wiz_of")} {steps.length}: {steps[step]}
-          {s.wizard.completedSteps.includes(step) && (
-            <CheckCircle2 className="inline w-3 h-3 ml-2 text-accent" />
-          )}
+          Step {step + 1} of {steps.length}: {steps[step]}
         </p>
 
-        <div className="h-1 bg-muted rounded mb-3 overflow-hidden">
+        <div className="h-1 bg-muted rounded mb-5 overflow-hidden">
           <div className="h-full bg-primary transition-all" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
-        </div>
-
-        <div className="flex flex-wrap gap-1 mb-5">
-          {steps.map((label, i) => (
-            <button
-              key={i}
-              onClick={() => goTo(i)}
-              className={`text-[10px] px-2 py-1 rounded border transition ${
-                i === step
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : s.wizard.completedSteps.includes(i)
-                    ? "bg-accent/10 border-accent/40 text-foreground"
-                    : "bg-muted/40 border-border/60 text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {i + 1}. {label}
-            </button>
-          ))}
         </div>
 
         {step === 0 && (
@@ -491,40 +440,6 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
         {step === 1 && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Pick brand colors and the PDF template used by every generated invoice.
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Primary color</Label>
-                <Input type="color" value={s.company.brandColor} onChange={(e) => s.setCompany({ brandColor: e.target.value })} />
-              </div>
-              <div><Label>Secondary color</Label>
-                <Input type="color" value={s.company.brandColorSecondary || "#2563EB"} onChange={(e) => s.setCompany({ brandColorSecondary: e.target.value })} />
-              </div>
-            </div>
-            <div><Label>{t("wiz_template_pick")}</Label>
-              <Select
-                value={s.company.invoiceTemplate}
-                onValueChange={(v: any) => s.setCompany({ invoiceTemplate: v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {INVOICE_TEMPLATES.map((tpl) => (
-                    <SelectItem key={tpl.id} value={tpl.id}>
-                      {tpl.name} — {tpl.desc}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>Footer text</Label>
-              <Input value={s.company.footerText || ""} onChange={(e) => s.setCompany({ footerText: e.target.value })} />
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
               Add salespeople. Reps are saved instantly and used by every invoice.
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -541,39 +456,18 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
               setAgentDraft({ name: "", email: "" });
               toast.success("Added");
             }}><Plus className="w-3 h-3 mr-2" />Add salesperson</Button>
-            <div className="text-xs text-muted-foreground">
-              Team: {s.agents.length ? s.agents.map((a) => a.name).join(", ") : "none — load demo data below to seed a team"}
-            </div>
+            {s.agents.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                Added: {s.agents.map((a) => a.name).join(", ")}
+              </div>
+            )}
           </div>
         )}
 
-        {step === 3 && (
-          <div className="space-y-3 text-sm">
-            <p className="text-muted-foreground">
-              Personal tiers and override levels apply to every commission calculation.
-            </p>
-            <div className="border rounded-lg p-3 space-y-2">
-              <div className="text-xs font-semibold">Personal tiers</div>
-              {s.personalTiers.map((tr, i) => (
-                <div key={i} className="text-xs text-muted-foreground font-mono">
-                  ≥ {fmtMoney(tr.minVolume, s.company.currency)} → {(tr.rate * 100).toFixed(2)}%
-                </div>
-              ))}
-              <div className="text-xs font-semibold pt-2">Override levels</div>
-              {s.overrides.map((o, i) => (
-                <div key={i} className="text-xs text-muted-foreground font-mono">
-                  L{o.level} → {(o.rate * 100).toFixed(2)}%
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">Edit later under Compensation → Commission Plan.</p>
-          </div>
-        )}
-
-        {step === 4 && (
+        {step === 2 && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Add finance companies (lenders). Each is saved immediately and selectable on every invoice.
+              Add finance companies (lenders). Each is selectable on every invoice.
             </p>
             <div className="grid grid-cols-4 gap-3">
               <div className="col-span-2"><Label>Name</Label>
@@ -594,70 +488,21 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
               setFinanceDraft({ name: "", defaultFee: 0.05, dealerFee: 0, adminFee: 0 });
               toast.success("Added");
             }}><Plus className="w-3 h-3 mr-2" />Add finance company</Button>
-            <div className="text-xs text-muted-foreground">
-              Existing: {s.financeCompanies.length ? s.financeCompanies.map((f) => f.name).join(", ") : "none"}
-            </div>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <p>Splits let multiple people share a commission (e.g. closer/setter). Overrides reward upline managers on their team's sales.</p>
-            <div className="border rounded-lg p-3 text-xs space-y-1">
-              <div className="font-semibold text-foreground">Active split templates</div>
-              {s.splitTemplates.map((tpl) => (
-                <div key={tpl.id} className="font-mono">{tpl.name}</div>
-              ))}
-            </div>
-            <p>Configure templates and rules later under Compensation → Split Rules.</p>
-          </div>
-        )}
-
-        {step === 6 && (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Default tax reserve % and rules for advances / pending balances. <em>Not tax advice.</em>
-            </p>
-            <div className="max-w-xs">
-              <Label>Default tax reserve %</Label>
-              <Input
-                type="number"
-                step="0.5"
-                value={((s.personalTiers[0]?.rate ?? 0.2) * 0 + 20).toFixed(1)}
-                onChange={() => { /* informational only — actual reserve is per-rep */ }}
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Adjust per-rep tax reserve under Team → Sales Reps.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {step === 7 && (
-          <div className="text-center py-6 space-y-3">
-            <CheckCircle2 className="w-12 h-12 mx-auto text-accent" />
-            <h3 className="text-lg font-semibold">{t("wiz_ready")}</h3>
-            <p className="text-sm text-muted-foreground">
-              Generate a test invoice PDF using your branding, plan and template.
-            </p>
-            <div className="flex justify-center gap-2 pt-2 flex-wrap">
-              <Button variant="outline" onClick={() => { s.loadDemoData(); toast.success("Demo data loaded"); }}>
-                Load demo data
-              </Button>
-              <Button onClick={generateTest}>
-                {t("wiz_generate_test")}
-              </Button>
-            </div>
+            {s.financeCompanies.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                Added: {s.financeCompanies.map((f) => f.name).join(", ")}
+              </div>
+            )}
           </div>
         )}
 
         <div className="flex justify-between mt-6">
-          <Button variant="ghost" onClick={onClose}>{t("wiz_cancel")}</Button>
+          <Button variant="ghost" onClick={onClose}>Skip setup</Button>
           <div className="flex gap-2">
-            {step > 0 && <Button variant="outline" onClick={back}><ArrowLeft className="w-4 h-4 mr-1" />{t("wiz_back")}</Button>}
+            {step > 0 && <Button variant="outline" onClick={back}><ArrowLeft className="w-4 h-4 mr-1" />Back</Button>}
             {step < steps.length - 1
-              ? <Button onClick={next}>{t("wiz_next")}<ArrowRight className="w-4 h-4 ml-1" /></Button>
-              : <Button onClick={finish}>{t("wiz_finish")}</Button>}
+              ? <Button onClick={next}>Next<ArrowRight className="w-4 h-4 ml-1" /></Button>
+              : <Button onClick={finish}>Finish</Button>}
           </div>
         </div>
       </Card>

@@ -3,6 +3,8 @@ import type {
   Agent, FinanceCompany, Invoice, LineItem, InvoiceSplit, SplitParticipant,
   Payment, Adjustment, Dispute, RequestEvent, Notification, NotificationKind,
   PersonalTier, OverrideLevel, Company, W9Status,
+  SplitTemplate, SplitParticipantRole, SplitRule, SplitRuleCriteria,
+  Product, CompensationPosition,
 } from "./commission-store";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -119,12 +121,12 @@ type InvoiceRow = Tables<"invoices"> & {
 
 export function adaptInvoice(row: InvoiceRow): Invoice {
   const charges: LineItem[] = (row.invoice_line_items ?? [])
-    .filter((li) => li.type === "charge")
+    .filter((li) => li.kind === "charge")
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((li) => ({ label: li.label, amount: Number(li.amount) }));
 
   const credits: LineItem[] = (row.invoice_line_items ?? [])
-    .filter((li) => li.type === "credit")
+    .filter((li) => li.kind === "credit")
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((li) => ({ label: li.label, amount: Number(li.amount) }));
 
@@ -292,10 +294,10 @@ export function adaptDispute(row: DisputeRow): Dispute {
 
   return {
     id: row.id,
-    invoiceId: row.invoice_id,
-    agentId: row.agent_id,
-    reason: row.reason,
-    notes: row.notes,
+    invoiceId: row.invoice_id ?? "",
+    agentId: row.agent_id ?? "",
+    reason: row.reason ?? "",
+    notes: row.notes ?? "",
     kind: row.kind as Dispute["kind"],
     priority: row.priority as Dispute["priority"],
     status: row.status as Dispute["status"],
@@ -320,7 +322,7 @@ export function disputeToRow(d: Dispute, companyId: string) {
     priority: d.priority,
     status: d.status,
     assigned_admin_id: d.assignedAdminId ?? null,
-    admin_notes: d.adminNotes,
+    admin_notes: d.adminNotes ?? "",
     requested_change: (d.requestedChange as any) ?? null,
   };
 }
@@ -368,5 +370,148 @@ export function adaptOverrideLevel(row: Tables<"override_levels">): OverrideLeve
   return {
     level: row.level,
     rate: Number(row.rate),
+  };
+}
+
+// ─── SPLIT TEMPLATES ─────────────────────────────────────────────────────────
+
+type SplitTemplateRow = Tables<"split_templates"> & {
+  split_template_positions?: Tables<"split_template_positions">[];
+};
+
+export function adaptSplitTemplate(row: SplitTemplateRow): SplitTemplate {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    positions: (row.split_template_positions ?? [])
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((p) => ({
+        role: p.role as SplitParticipantRole,
+        customRoleLabel: p.custom_role_label ?? undefined,
+        splitPercent: Number(p.split_percent),
+        displayName: p.display_name ?? undefined,
+      })),
+  };
+}
+
+export function splitTemplateToRow(t: SplitTemplate, companyId: string) {
+  return {
+    id: t.id,
+    company_id: companyId,
+    name: t.name,
+    description: t.description,
+  };
+}
+
+export function splitTemplatePositionsToRows(t: SplitTemplate) {
+  return t.positions.map((p, i) => ({
+    template_id: t.id,
+    role: p.role,
+    custom_role_label: p.customRoleLabel ?? null,
+    split_percent: p.splitPercent,
+    display_name: p.displayName ?? null,
+    sort_order: i,
+  }));
+}
+
+// ─── SPLIT RULES ─────────────────────────────────────────────────────────────
+
+export function adaptSplitRule(row: Tables<"split_rules">): SplitRule {
+  return {
+    id: row.id,
+    name: row.name,
+    priority: row.priority,
+    active: row.active,
+    criteria: (row.criteria as SplitRuleCriteria) ?? {},
+    templateId: row.template_id,
+    notes: row.notes,
+  };
+}
+
+export function splitRuleToRow(r: SplitRule, companyId: string) {
+  return {
+    id: r.id,
+    company_id: companyId,
+    name: r.name,
+    priority: r.priority,
+    active: r.active,
+    template_id: r.templateId,
+    criteria: r.criteria as Record<string, unknown>,
+    notes: r.notes ?? "",
+  };
+}
+
+// ─── PRODUCTS ────────────────────────────────────────────────────────────────
+
+export function adaptProduct(row: Tables<"products">): Product {
+  return {
+    id: row.id,
+    name: row.name,
+    sku: row.sku,
+    kind: row.kind,
+    price: Number(row.price),
+    cost: Number(row.cost),
+    priceEditable: row.price_editable,
+    active: row.active,
+    notes: row.notes,
+  };
+}
+
+export function productToRow(p: Product, companyId: string) {
+  return {
+    id: p.id,
+    company_id: companyId,
+    name: p.name,
+    sku: p.sku,
+    kind: p.kind,
+    price: p.price,
+    cost: p.cost,
+    price_editable: p.priceEditable,
+    active: p.active,
+    notes: p.notes,
+  };
+}
+
+// ─── COMPENSATION POSITIONS ──────────────────────────────────────────────────
+
+export function adaptPosition(row: Tables<"compensation_positions">): CompensationPosition {
+  return {
+    id: row.id,
+    name: row.name,
+    commissionPercent: Number(row.commission_percent),
+    fixedPayout: Number(row.fixed_payout),
+    overrideEligible: row.override_eligible,
+    differentialOverridePercent: Number(row.differential_override_percent),
+    splitDefaultPercent: Number(row.split_default_percent),
+    effectiveFrom: row.effective_from,
+    effectiveTo: row.effective_to ?? "",
+    active: row.active,
+    financeCompanyId: row.finance_company_id ?? null,
+    productRule: row.product_rule,
+    minApprovalPercent: Number(row.min_approval_percent),
+    specialDeductionPercent: Number(row.special_deduction_percent),
+    notes: row.notes,
+  };
+}
+
+export function positionToRow(p: CompensationPosition, companyId: string) {
+  return {
+    id: p.id,
+    company_id: companyId,
+    name: p.name,
+    commission_percent: p.commissionPercent,
+    fixed_payout: p.fixedPayout,
+    override_eligible: p.overrideEligible,
+    differential_override_percent: p.differentialOverridePercent,
+    split_default_percent: p.splitDefaultPercent,
+    effective_from: p.effectiveFrom,
+    effective_to: p.effectiveTo || null,
+    active: p.active,
+    finance_company_id: p.financeCompanyId ?? null,
+    product_rule: p.productRule,
+    min_approval_percent: p.minApprovalPercent,
+    special_deduction_percent: p.specialDeductionPercent,
+    notes: p.notes,
   };
 }
