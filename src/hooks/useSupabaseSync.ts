@@ -150,11 +150,11 @@ export function useSupabaseSync() {
           await supabase.from("invoice_line_items").delete().eq("invoice_id", inv.id);
           const lineItems = [
             ...inv.charges.map((c, i) => ({
-              invoice_id: inv.id, company_id: companyId,
+              invoice_id: inv.id,
               kind: "charge" as const, label: c.label, amount: c.amount, sort_order: i,
             })),
             ...inv.credits.map((c, i) => ({
-              invoice_id: inv.id, company_id: companyId,
+              invoice_id: inv.id,
               kind: "credit" as const, label: c.label, amount: c.amount, sort_order: i,
             })),
           ];
@@ -257,7 +257,7 @@ export function useSupabaseSync() {
       if (prev.company !== next.company) {
         supabase
           .from("companies")
-          .update(companyToRow(next.company, companyId))
+          .update(companyToRow(next.company))
           .eq("id", companyId)
           .then(({ error }) => { if (error) console.error("sync:company", error); });
       }

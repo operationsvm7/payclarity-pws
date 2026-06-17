@@ -30,7 +30,7 @@ export function adaptCompany(row: Tables<"companies">): Partial<Company> {
   };
 }
 
-export function companyToRow(c: Company, id: string) {
+export function companyToRow(c: Company) {
   return {
     name: c.name,
     address: c.address,
@@ -71,13 +71,13 @@ export function agentToRow(a: Agent, companyId: string) {
     company_id: companyId,
     name: a.name,
     email: a.email,
-    sponsor_id: a.sponsorId ?? null,
+    sponsor_id: a.sponsorId ?? undefined,
     w9_status: a.w9Status ?? "missing",
-    state: a.state ?? null,
-    payment_method: a.paymentMethod ?? null,
+    state: a.state ?? undefined,
+    payment_method: a.paymentMethod ?? undefined,
     tax_reserve_percent: a.taxReservePercent ?? 0.2,
-    commission_percent: a.commissionPercent ?? null,
-    level: a.level ?? null,
+    commission_percent: a.commissionPercent ?? undefined,
+    level: a.level ?? undefined,
   };
 }
 
@@ -194,7 +194,7 @@ export function invoiceCoreToRow(inv: Invoice, companyId: string) {
     number: inv.number,
     date: inv.date,
     status: inv.status,
-    agent_id: inv.agentId || null,
+    agent_id: inv.agentId,
     finance_company_id: inv.financeCompanyId ?? null,
     customer_name: inv.customerName,
     customer_notes: inv.customerNotes,
