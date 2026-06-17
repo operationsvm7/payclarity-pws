@@ -468,7 +468,7 @@ type State = {
   resetWizard: () => void;
 };
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+const uid = () => crypto.randomUUID();
 
 function sameAudience(
   a: Notification["audience"],

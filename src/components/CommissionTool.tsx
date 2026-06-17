@@ -43,6 +43,7 @@ import { SplitsPanel, SplitEditorDialog, totalSplitPercent, isSplitValid } from 
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { InvoiceTimelineDialog } from "@/components/InvoiceTimelineDialog";
 import { useT } from "@/lib/i18n";
+import { useSupabaseSync } from "@/hooks/useSupabaseSync";
 
 type NavTab = { id: string; label: string; icon: any };
 type NavGroup = { id: string; label: string; tabs: NavTab[] };
@@ -93,6 +94,7 @@ export default function CommissionTool() {
   const s = useStore();
   const t = useT();
   const { profile, signOut } = useAuth();
+  const { dataLoaded } = useSupabaseSync();
 
   // Sync Zustand role with the authenticated user's role from Supabase
   useEffect(() => {
@@ -140,13 +142,14 @@ export default function CommissionTool() {
     }
   }, [s.deepLink?.ts, s.deepLink?.tab]);
 
-  // Open Setup Wizard on first launch instead of auto-seeding demo data.
+  // Open Setup Wizard after Supabase data loads, only if company has no data yet.
   useEffect(() => {
+    if (!dataLoaded) return;
     if (s.agents.length === 0 && s.invoices.length === 0 && !s.wizard?.completed) {
       setWizardOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dataLoaded]);
 
   void s; // reserved
   const payouts = useMemo(
