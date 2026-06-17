@@ -116,7 +116,7 @@ export function WalletPanel() {
         desc="Earned, paid, pending balance, advances, tax reserve and upcoming payout."
         action={
           isAdmin ? (
-            <div className="w-64">
+            <div className="w-full sm:w-64">
               <Select value={current?.agent.id} onValueChange={setSelected}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pick salesperson" />
@@ -166,7 +166,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
 
   return (
     <div className="grid gap-6">
-      <div className="grid md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Stat label="Total earned" value={fmtMoney(wallet.totalEarned, cur)} accent />
         <Stat label="Total paid" value={fmtMoney(wallet.totalPaid, cur)} />
         <Stat label="Pending balance" value={fmtMoney(wallet.pendingBalance, cur)} accent />
@@ -190,6 +190,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
           {p.invoices.length === 0 ? (
             <Empty msg="No invoices yet." />
           ) : (
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground uppercase">
                 <tr>
@@ -226,6 +227,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
                 ))}
               </tbody>
             </table>
+          </div>
           )}
         </Card>
 
@@ -234,6 +236,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
           {p.downline.length === 0 ? (
             <Empty msg="No downline overrides." />
           ) : (
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground uppercase">
                 <tr>
@@ -256,6 +259,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
                 ))}
               </tbody>
             </table>
+          </div>
           )}
         </Card>
       </div>
@@ -272,7 +276,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
       <Card className="p-5">
         <h3 className="font-semibold mb-3">Payments received</h3>
         {canRecordPayment && (
-        <div className="grid md:grid-cols-5 gap-2 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 mb-3">
           <div>
             <Label className="text-xs">Amount</Label>
             <Input
@@ -308,6 +312,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
         {wallet.payments.length === 0 ? (
           <Empty msg="No payments yet." />
         ) : (
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground uppercase">
               <tr>
@@ -336,6 +341,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
               ))}
             </tbody>
           </table>
+        </div>
         )}
       </Card>
     </div>
@@ -560,7 +566,7 @@ export function DisputeDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Type</Label>
               <Select value={kind} onValueChange={(v: any) => setKind(v)}>
@@ -592,7 +598,7 @@ export function DisputeDialog({
               placeholder="e.g. wrong sales amount"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <Label>Suggested change — field</Label>
               <Select value={field} onValueChange={setField}>
@@ -814,7 +820,7 @@ function ApprovalsQueuePanel() {
             {c.label}
           </Button>
         ))}
-        <div className="ml-auto w-64">
+        <div className="w-full sm:w-64 sm:ml-auto mt-2 sm:mt-0">
           <Input
             placeholder="Search invoice, agent, reason…"
             value={search}
@@ -1074,7 +1080,7 @@ export function SimulatorPanel() {
     >
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="p-5 space-y-3">
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <Label>Sales amount</Label>
               <Input
@@ -1251,7 +1257,7 @@ export function TemplatesPanel() {
       title="Industry templates"
       desc="One-click presets for common commission models. They replace your current tiers and overrides."
     >
-      <div className="grid md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {INDUSTRY_TEMPLATES.map((t) => (
           <Card key={t.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
@@ -1352,7 +1358,7 @@ export function CalendarPanel() {
         </div>
       }
     >
-      <div className="grid md:grid-cols-4 gap-3 mb-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         <Stat label="Next payout" value={s.nextPayoutDate} />
         <Stat label="Pending profit" value={fmtMoney(totalPending, cur)} accent />
         <Stat label="Paid profit" value={fmtMoney(totalPaid, cur)} />
@@ -1386,7 +1392,7 @@ export function CalendarPanel() {
                     </div>
                     <div className="font-mono font-semibold">{fmtMoney(dayProfit, cur)}</div>
                   </div>
-                  <table className="w-full text-xs">
+                  <div className="overflow-x-auto"><table className="w-full text-xs">
                     <tbody>
                       {list.map((i) => {
                         const ag = s.agents.find((a) => a.id === i.agentId);
@@ -1408,7 +1414,7 @@ export function CalendarPanel() {
                         );
                       })}
                     </tbody>
-                  </table>
+                  </table></div>
                 </Card>
               );
             })}
