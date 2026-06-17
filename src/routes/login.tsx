@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Eye, EyeOff, AlertCircle, Clock } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Clock, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -44,12 +44,11 @@ function LoginPage() {
       setServerError(
         error.message === "Invalid login credentials"
           ? "Incorrect email or password."
-          : error.message
+          : error.message,
       );
       return;
     }
 
-    // Check profile status and role after successful login
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase
@@ -63,7 +62,6 @@ function LoginPage() {
         setServerError("Your account has been rejected. Contact your administrator.");
         return;
       }
-      // Block if not fully approved (pending, no role, or any non-active status)
       if (!profile || profile.status !== "active" || !profile.role) {
         await supabase.auth.signOut();
         setPendingUser(true);
@@ -75,61 +73,119 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-primary shadow-elegant mb-4">
-            <Sparkles className="w-7 h-7 text-white" />
+    <div className="min-h-screen flex">
+      {/* ── Left panel: dark hero ─────────────────────────── */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero relative overflow-hidden flex-col justify-between p-12">
+        {/* dot grid overlay */}
+        <div className="absolute inset-0 dot-grid opacity-40" />
+
+        {/* floating accent circles */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-sky-500/10 blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="absolute top-1/2 left-1/3 w-48 h-48 rounded-full bg-blue-600/10 blur-2xl" />
+
+        {/* logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-cta shadow-btn flex items-center justify-center">
+            <Zap className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">PayClarity</h1>
-          <p className="text-sm text-muted-foreground mt-1">Commission management platform</p>
+          <span className="text-white text-xl font-bold tracking-tight">PayClarity</span>
         </div>
 
-        {/* Card */}
-        <div className="bg-card border border-border rounded-2xl shadow-card p-8">
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+        {/* hero copy */}
+        <div className="relative z-10 space-y-6">
+          <div>
+            <h2 className="text-4xl font-bold text-white leading-tight">
+              Claridad en cada<br />
+              <span className="text-gradient-cta">comisión.</span>
+            </h2>
+            <p className="mt-4 text-sky-200/80 text-lg leading-relaxed max-w-sm">
+              Gestiona pagos, splits y reportes de todo tu equipo en un solo lugar.
+            </p>
           </div>
 
+          {/* feature pills */}
+          <div className="flex flex-wrap gap-3">
+            {["Commission Wallet", "Payout Calendar", "Split Rules", "Team Reports"].map((f) => (
+              <span
+                key={f}
+                className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-medium backdrop-blur-sm"
+              >
+                {f}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* bottom tagline */}
+        <p className="relative z-10 text-sky-300/60 text-sm">
+          Claridad en cada comisión.
+        </p>
+      </div>
+
+      {/* ── Right panel: login form ───────────────────────── */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-background">
+        <div className="w-full max-w-md space-y-8">
+          {/* mobile logo */}
+          <div className="lg:hidden text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-cta shadow-btn mb-4">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">PayClarity</h1>
+          </div>
+
+          {/* heading */}
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Bienvenido</h2>
+            <p className="text-muted-foreground mt-1 text-sm">Inicia sesión en tu cuenta</p>
+          </div>
+
+          {/* alerts */}
           {pendingUser && (
-            <div className="mb-5 flex gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+            <div className="flex gap-3 p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-800">
               <Clock className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <div>
-                <p className="text-sm font-medium">Account pending approval</p>
+                <p className="text-sm font-semibold">Cuenta pendiente de aprobación</p>
                 <p className="text-sm mt-0.5 text-amber-700">
-                  Your account is waiting for an administrator to approve it. You will be notified once access is granted.
+                  Un administrador debe activar tu cuenta. Te notificaremos cuando tengas acceso.
                 </p>
               </div>
             </div>
           )}
 
           {serverError && !pendingUser && (
-            <div className="mb-5 flex gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive">
+            <div className="flex gap-3 p-4 rounded-2xl bg-red-50 border-2 border-red-200 text-red-700">
               <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
               <p className="text-sm">{serverError}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
+          {/* form */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-semibold text-foreground">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@company.com"
+                placeholder="tu@empresa.com"
                 autoComplete="email"
                 {...register("email")}
-                className={errors.email ? "border-destructive" : ""}
+                className={errors.email ? "border-destructive focus-visible:border-destructive" : ""}
               />
               {errors.email && (
-                <p className="text-xs text-destructive">{errors.email.message}</p>
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.email.message}
+                </p>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-semibold text-foreground">
+                Contraseña
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -137,42 +193,61 @@ function LoginPage() {
                   placeholder="••••••••"
                   autoComplete="current-password"
                   {...register("password")}
-                  className={errors.password ? "border-destructive pr-10" : "pr-10"}
+                  className={
+                    errors.password
+                      ? "border-destructive focus-visible:border-destructive pr-11"
+                      : "pr-11"
+                  }
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-accent transition-colors"
                   tabIndex={-1}
                 >
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-xs text-destructive">{errors.password.message}</p>
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.password.message}
+                </p>
               )}
             </div>
 
             <Button
               type="submit"
-              className="w-full mt-6 bg-gradient-primary text-white shadow-elegant hover:opacity-90"
+              variant="cta"
+              size="lg"
+              className="w-full mt-2"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Signing in…" : "Sign in"}
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Iniciando sesión…
+                </span>
+              ) : (
+                "Iniciar sesión"
+              )}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Don't have an account?{" "}
-            <Link to="/register" className="text-accent font-medium hover:underline">
-              Register
+          <p className="text-center text-sm text-muted-foreground">
+            ¿No tienes cuenta?{" "}
+            <Link
+              to="/register"
+              className="text-accent font-semibold hover:text-primary-glow transition-colors"
+            >
+              Regístrate
             </Link>
           </p>
-        </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          © {new Date().getFullYear()} PayClarity. All rights reserved.
-        </p>
+          <p className="text-center text-xs text-muted-foreground/60">
+            © 2026 PayClarity. Todos los derechos reservados.
+          </p>
+        </div>
       </div>
     </div>
   );

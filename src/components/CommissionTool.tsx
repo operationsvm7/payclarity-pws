@@ -177,27 +177,28 @@ export default function CommissionTool() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border/60 bg-card/50 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+      <header className="sticky top-0 z-10 border-b border-sky-200/60 bg-white/90 backdrop-blur-md shadow-[0_1px_12px_rgb(14_165_233/0.08)]">
+        <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary shadow-elegant flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-cta shadow-btn flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold leading-tight">{t("app_title")}</h1>
-              <p className="text-xs text-muted-foreground">{t("app_subtitle")}</p>
+              <h1 className="text-lg font-bold leading-tight tracking-tight">{t("app_title")}</h1>
+              <p className="text-[11px] text-muted-foreground">{t("app_subtitle")}</p>
             </div>
           </div>
           <div className="flex items-center gap-4 text-sm flex-wrap">
             {canManage && (
-              <Button variant="outline" size="sm" onClick={() => setWizardOpen(true)}>
-                <Wand2 className="w-4 h-4 mr-2" />Setup wizard
+              <Button variant="ghost" size="sm" onClick={() => setWizardOpen(true)} className="text-muted-foreground hover:text-accent">
+                <Wand2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Setup</span>
               </Button>
             )}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/60">
-              <Languages className="w-4 h-4" />
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200">
+              <Languages className="w-3.5 h-3.5 text-accent" />
               <Select value={s.language} onValueChange={(v: any) => s.setLanguage(v)}>
-                <SelectTrigger className="h-8 w-[110px] border-0 bg-transparent shadow-none p-0 focus:ring-0">
+                <SelectTrigger className="h-7 w-[90px] border-0 bg-transparent shadow-none p-0 focus:ring-0 text-xs font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -209,10 +210,10 @@ export default function CommissionTool() {
             {isAdmin && (
               <button
                 onClick={() => setAdminOpen(true)}
-                className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/60 hover:bg-muted transition-colors text-sm"
+                className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 hover:bg-sky-100 hover:border-accent/40 transition-all text-sm font-medium text-accent"
               >
-                <ShieldAlert className="w-4 h-4 text-accent" />
-                <span className="hidden sm:inline font-medium">Admin</span>
+                <ShieldAlert className="w-4 h-4" />
+                <span className="hidden sm:inline">Admin</span>
                 {pendingCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none">
                     {pendingCount > 9 ? "9+" : pendingCount}
@@ -238,8 +239,8 @@ export default function CommissionTool() {
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-muted/50 border border-border/60 hover:bg-muted transition-colors text-sm">
-                  <div className="w-7 h-7 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">
+                <button className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gradient-primary hover:opacity-90 transition-all shadow-elegant text-sm">
+                  <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
                     {isAdmin ? (
                       <Shield className="w-3.5 h-3.5 text-white" />
                     ) : (
@@ -247,14 +248,14 @@ export default function CommissionTool() {
                     )}
                   </div>
                   <div className="text-left hidden sm:block">
-                    <p className="font-medium leading-tight text-foreground truncate max-w-[120px]">
+                    <p className="font-semibold leading-tight text-white truncate max-w-[110px]">
                       {profile?.full_name ?? profile?.email?.split("@")[0] ?? "User"}
                     </p>
-                    <p className="text-[10px] text-muted-foreground capitalize leading-tight">
+                    <p className="text-[10px] text-sky-300 capitalize leading-tight">
                       {s.role}
                     </p>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  <ChevronDown className="w-3.5 h-3.5 text-white/70" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -287,7 +288,7 @@ export default function CommissionTool() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-6 py-6">
         {isRep && !effectiveAgentId ? (
           <Card className="p-8 text-center">
             <UserRound className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
@@ -304,7 +305,7 @@ export default function CommissionTool() {
             ).length;
             return (
               <>
-                <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-muted/50 border border-border/60">
+                <div className="flex flex-wrap gap-1.5 p-1.5 rounded-2xl bg-white border border-sky-200 shadow-card">
                   {groups.map((g) => (
                     <button
                       key={g.id}
@@ -312,15 +313,15 @@ export default function CommissionTool() {
                         setGroup(g.id);
                         setTab(g.tabs[0].id);
                       }}
-                      className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 ${
                         g.id === currentGroup.id
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:bg-background hover:text-foreground"
+                          ? "bg-gradient-cta text-white shadow-btn scale-[1.02]"
+                          : "text-muted-foreground hover:bg-sky-50 hover:text-accent"
                       }`}
                     >
                       {g.label}
                       {g.id === "payouts" && !isRep && openRequests > 0 && (
-                        <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-accent text-accent-foreground text-[10px] font-semibold">
+                        <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white/30 text-white text-[10px] font-bold">
                           {openRequests}
                         </span>
                       )}
@@ -389,9 +390,9 @@ export default function CommissionTool() {
 
 function Stat({ label, value, accent }: { label: string; value: any; accent?: boolean }) {
   return (
-    <div className="text-right">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={`font-mono font-semibold ${accent ? "text-accent" : ""}`}>{value}</div>
+    <div className="px-3 py-1.5 rounded-xl bg-sky-50 border border-sky-200 text-right">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</div>
+      <div className={`font-mono font-bold text-sm ${accent ? "text-gradient-cta" : "text-foreground"}`}>{value}</div>
     </div>
   );
 }
