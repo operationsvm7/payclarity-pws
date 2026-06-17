@@ -72,7 +72,7 @@ export function DashboardPanel() {
         </div>
       </Card>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-6 shadow-card">
           <h3 className="font-semibold mb-3">{t("dash_top_reps")}</h3>
           {topReps.length === 0 ? (
@@ -205,7 +205,7 @@ export function ReportsPanel() {
     <Card className="p-6 shadow-card">
       <h2 className="text-lg font-semibold">{t("reports_title")}</h2>
       <p className="text-sm text-muted-foreground mt-1 mb-5">{t("reports_desc")}</p>
-      <div className="grid md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Item label={t("reports_commissions_by_rep")} onClick={exportCommissions} />
         <Item label={t("reports_invoices")} onClick={exportInvoices} />
         <Item label={t("reports_overrides")} onClick={exportOverrides} />
@@ -369,7 +369,7 @@ export function TaxReserveByStateEditor() {
 
   return (
     <div>
-      <div className="grid grid-cols-[1fr_120px_auto] gap-2 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-2 mb-3">
         <Input placeholder="State (e.g. CA)" value={stateCode} onChange={(e) => setStateCode(e.target.value)} />
         <Input type="number" step="0.1" value={pct} onChange={(e) => setPct(Number(e.target.value))} />
         <Button onClick={add}>+</Button>
