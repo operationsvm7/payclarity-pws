@@ -46,22 +46,22 @@ function RegisterPage() {
   async function onSubmit(values: FormValues) {
     setServerError(null);
 
-    // Verify invite code via secure RPC
-    const { data: codeValid, error: rpcError } = await supabase.rpc("verify_invite_code", {
+    // Verify invite code — returns the company_id uuid, or null if invalid
+    const { data: companyId, error: rpcError } = await supabase.rpc("verify_invite_code", {
       code: values.inviteCode,
     });
 
-    if (rpcError || !codeValid) {
+    if (rpcError || !companyId) {
       setServerError("Invalid company code. Contact your administrator to get the correct code.");
       return;
     }
 
-    // Create Supabase auth user (trigger auto-creates profile)
+    // Create Supabase auth user; trigger auto-creates profile with company_id
     const { error: signUpError } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
       options: {
-        data: { full_name: values.fullName },
+        data: { full_name: values.fullName, company_id: companyId },
         emailRedirectTo: undefined,
       },
     });

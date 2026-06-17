@@ -140,10 +140,10 @@ export default function CommissionTool() {
     }
   }, [s.deepLink?.ts, s.deepLink?.tab]);
 
-  // Auto-seed demo data on first launch so dashboard is never empty.
+  // Open Setup Wizard on first launch instead of auto-seeding demo data.
   useEffect(() => {
-    if (s.agents.length === 0 && s.invoices.length === 0) {
-      s.loadDemoData();
+    if (s.agents.length === 0 && s.invoices.length === 0 && !s.wizard?.completed) {
+      setWizardOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

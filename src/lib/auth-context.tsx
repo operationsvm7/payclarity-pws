@@ -11,6 +11,7 @@ export interface Profile {
   full_name: string | null;
   role: UserRole | null;
   status: UserStatus;
+  company_id: string | null;
   created_at: string;
   updated_at: string;
 }
