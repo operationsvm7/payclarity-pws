@@ -177,43 +177,48 @@ export default function CommissionTool() {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-10 border-b border-sky-200/60 bg-white/90 backdrop-blur-md shadow-[0_1px_12px_rgb(14_165_233/0.08)]">
-        <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-cta shadow-btn flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+      <header className="sticky top-0 z-10 border-b border-sky-200/60 bg-white/95 backdrop-blur-md shadow-[0_1px_12px_rgb(14_165_233/0.08)]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 flex items-center justify-between gap-2">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-cta shadow-btn flex items-center justify-center shrink-0">
+              <Sparkles className="w-4.5 h-4.5 text-white" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold leading-tight tracking-tight">{t("app_title")}</h1>
-              <p className="text-[11px] text-muted-foreground">{t("app_subtitle")}</p>
+            <div className="min-w-0">
+              <h1 className="text-base font-bold leading-tight tracking-tight truncate">{t("app_title")}</h1>
+              <p className="text-[10px] text-muted-foreground hidden sm:block">{t("app_subtitle")}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4 text-sm flex-wrap">
-            {canManage && (
-              <Button variant="ghost" size="sm" onClick={() => setWizardOpen(true)} className="text-muted-foreground hover:text-accent">
-                <Wand2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Setup</span>
-              </Button>
-            )}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200">
-              <Languages className="w-3.5 h-3.5 text-accent" />
-              <Select value={s.language} onValueChange={(v: any) => s.setLanguage(v)}>
-                <SelectTrigger className="h-7 w-[90px] border-0 bg-transparent shadow-none p-0 focus:ring-0 text-xs font-medium">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="es">{t("spanish")}</SelectItem>
-                  <SelectItem value="en">{t("english")}</SelectItem>
-                </SelectContent>
-              </Select>
+
+          {/* Desktop stats */}
+          {!isRep && (
+            <div className="hidden lg:flex items-center gap-3 mx-4">
+              <Stat label={t("stat_salespeople")} value={s.agents.length} />
+              <Stat label={t("stat_sales_total")} value={fmtMoney(totalSales, s.company.currency)} />
+              <Stat label={t("stat_payout")} value={fmtMoney(totalPayout, s.company.currency)} accent />
             </div>
+          )}
+
+          {/* Right actions */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Language toggle – always visible */}
+            <button
+              onClick={() => s.setLanguage(s.language === "es" ? "en" : "es")}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-all text-xs font-bold text-accent"
+              title={t("language")}
+            >
+              <Languages className="w-3.5 h-3.5" />
+              <span>{s.language === "es" ? "ES" : "EN"}</span>
+            </button>
+
+            {/* Admin button – icon on mobile */}
             {isAdmin && (
               <button
                 onClick={() => setAdminOpen(true)}
-                className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 hover:bg-sky-100 hover:border-accent/40 transition-all text-sm font-medium text-accent"
+                className="relative flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-all text-sm font-medium text-accent"
               >
                 <ShieldAlert className="w-4 h-4" />
-                <span className="hidden sm:inline">Admin</span>
+                <span className="hidden md:inline">Admin</span>
                 {pendingCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] rounded-full bg-destructive text-white text-[10px] font-bold flex items-center justify-center px-1 leading-none">
                     {pendingCount > 9 ? "9+" : pendingCount}
@@ -221,13 +226,13 @@ export default function CommissionTool() {
                 )}
               </button>
             )}
+
             <NotificationsBell />
+
+            {/* Rep selector – full width under header on mobile */}
             {isRep && (
-              <Select
-                value={effectiveAgentId || ""}
-                onValueChange={(v) => s.setActiveAgentId(v)}
-              >
-                <SelectTrigger className="h-9 w-[160px]">
+              <Select value={effectiveAgentId || ""} onValueChange={(v) => s.setActiveAgentId(v)}>
+                <SelectTrigger className="h-9 w-[130px] sm:w-[160px]">
                   <SelectValue placeholder={t("select_rep")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -237,58 +242,48 @@ export default function CommissionTool() {
                 </SelectContent>
               </Select>
             )}
+
+            {/* User menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-gradient-primary hover:opacity-90 transition-all shadow-elegant text-sm">
-                  <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                    {isAdmin ? (
-                      <Shield className="w-3.5 h-3.5 text-white" />
-                    ) : (
-                      <UserRound className="w-3.5 h-3.5 text-white" />
-                    )}
+                <button className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-xl bg-gradient-primary hover:opacity-90 transition-all shadow-elegant text-sm">
+                  <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                    {isAdmin ? <Shield className="w-3.5 h-3.5 text-white" /> : <UserRound className="w-3.5 h-3.5 text-white" />}
                   </div>
                   <div className="text-left hidden sm:block">
-                    <p className="font-semibold leading-tight text-white truncate max-w-[110px]">
+                    <p className="font-semibold leading-tight text-white truncate max-w-[100px] text-xs">
                       {profile?.full_name ?? profile?.email?.split("@")[0] ?? "User"}
                     </p>
-                    <p className="text-[10px] text-sky-300 capitalize leading-tight">
-                      {s.role}
-                    </p>
+                    <p className="text-[10px] text-sky-300 capitalize leading-tight">{s.role}</p>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-white/70" />
+                  <ChevronDown className="w-3 h-3 text-white/70" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
                 <div className="px-3 py-2">
-                  <p className="text-sm font-medium truncate">
-                    {profile?.full_name ?? "User"}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {profile?.email}
-                  </p>
+                  <p className="text-sm font-semibold truncate">{profile?.full_name ?? "User"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                  <p className="text-xs text-accent capitalize mt-0.5">{s.role}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive cursor-pointer"
-                  onClick={() => signOut()}
-                >
+                {canManage && (
+                  <DropdownMenuItem onClick={() => setWizardOpen(true)} className="cursor-pointer">
+                    <Wand2 className="w-4 h-4 mr-2 text-accent" />
+                    {t("wiz_title")}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer" onClick={() => signOut()}>
                   <LogOut className="w-4 h-4 mr-2" />
-                  Sign out
+                  {t("menu_sign_out")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {!isRep && (
-              <div className="hidden md:flex items-center gap-6">
-                <Stat label={t("stat_salespeople")} value={s.agents.length} />
-                <Stat label={t("stat_sales_total")} value={fmtMoney(totalSales, s.company.currency)} />
-                <Stat label={t("stat_payout")} value={fmtMoney(totalPayout, s.company.currency)} accent />
-              </div>
-            )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         {isRep && !effectiveAgentId ? (
           <Card className="p-8 text-center">
             <UserRound className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
@@ -305,46 +300,50 @@ export default function CommissionTool() {
             ).length;
             return (
               <>
-                <div className="flex flex-wrap gap-1.5 p-1.5 rounded-2xl bg-white border border-sky-200 shadow-card">
-                  {groups.map((g) => (
-                    <button
-                      key={g.id}
-                      onClick={() => {
-                        setGroup(g.id);
-                        setTab(g.tabs[0].id);
-                      }}
-                      className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-200 ${
-                        g.id === currentGroup.id
-                          ? "bg-gradient-cta text-white shadow-btn scale-[1.02]"
-                          : "text-muted-foreground hover:bg-sky-50 hover:text-accent"
-                      }`}
-                    >
-                      {g.label}
-                      {g.id === "payouts" && !isRep && openRequests > 0 && (
-                        <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-white/30 text-white text-[10px] font-bold">
-                          {openRequests}
-                        </span>
-                      )}
-                    </button>
-                  ))}
+                {/* Group nav — scrollable on mobile, wraps on desktop */}
+                <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 pb-0.5 sm:pb-0 [&::-webkit-scrollbar]:hidden">
+                  <div className="flex gap-1.5 p-1.5 rounded-2xl bg-white border border-sky-200 shadow-card w-max sm:w-auto">
+                    {groups.map((g) => (
+                      <button
+                        key={g.id}
+                        onClick={() => { setGroup(g.id); setTab(g.tabs[0].id); }}
+                        className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl whitespace-nowrap transition-all duration-200 ${
+                          g.id === currentGroup.id
+                            ? "bg-gradient-cta text-white shadow-btn"
+                            : "text-muted-foreground hover:bg-sky-50 hover:text-accent"
+                        }`}
+                      >
+                        {g.label}
+                        {g.id === "payouts" && !isRep && openRequests > 0 && (
+                          <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.125rem] h-[18px] px-1 rounded-full bg-white/30 text-white text-[10px] font-bold">
+                            {openRequests}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* Sub-tabs — icon + label, scroll on mobile */}
                 {currentGroup.tabs.length > 1 && (
-                  <TabsList className="flex flex-wrap h-auto w-full justify-start gap-1">
-                    {currentGroup.tabs.map((tt) => {
-                      const Icon = tt.icon;
-                      return (
-                        <TabsTrigger key={tt.id} value={tt.id}>
-                          <Icon className="w-4 h-4 mr-2" />
-                          {tt.label}
-                          {tt.id === "disputes" && !isRep && openRequests > 0 && (
-                            <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
-                              {openRequests}
-                            </span>
-                          )}
-                        </TabsTrigger>
-                      );
-                    })}
-                  </TabsList>
+                  <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 [&::-webkit-scrollbar]:hidden">
+                    <TabsList className="flex h-auto w-max sm:w-auto justify-start gap-1 p-1">
+                      {currentGroup.tabs.map((tt) => {
+                        const Icon = tt.icon;
+                        return (
+                          <TabsTrigger key={tt.id} value={tt.id} className="whitespace-nowrap text-xs sm:text-sm px-2.5 sm:px-3 py-1.5">
+                            <Icon className="w-3.5 h-3.5 shrink-0" />
+                            <span className="hidden xs:inline sm:inline ml-1.5">{tt.label}</span>
+                            {tt.id === "disputes" && !isRep && openRequests > 0 && (
+                              <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.125rem] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
+                                {openRequests}
+                              </span>
+                            )}
+                          </TabsTrigger>
+                        );
+                      })}
+                    </TabsList>
+                  </div>
                 )}
               </>
             );
@@ -414,7 +413,7 @@ function DashboardQuickActions({
       inv = useStore.getState().invoices[0];
     }
     if (!inv) {
-      toast.error("Could not generate PDF");
+      toast.error(t("err_pdf"));
       return;
     }
     try {
@@ -424,9 +423,9 @@ function DashboardQuickActions({
       const c = calcInvoice(inv, fcs);
       const agentName = agents.find((a) => a.id === inv!.agentId)?.name || "—";
       buildSaleAndDownload(c, company, agentName);
-      toast.success("Test PDF generated");
+      toast.success(t("success_pdf"));
     } catch (e: any) {
-      toast.error(e?.message || "Could not generate PDF");
+      toast.error(e?.message || t("err_pdf"));
     }
   };
 
@@ -511,15 +510,16 @@ function Field({ label, value, onChange, type = "text" }: { label: string; value
 /* ---------- Agents ---------- */
 function AgentsPanel() {
   const { agents, addAgent, updateAgent, removeAgent } = useStore();
+  const t = useT();
   const [form, setForm] = useState({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
 
   const submit = () => {
-    if (!form.name.trim()) return toast.error("Name is required");
-    if (!form.email.trim()) return toast.error("Email is required");
+    if (!form.name.trim()) return toast.error(t("err_name_required"));
+    if (!form.email.trim()) return toast.error(t("err_email_required"));
     // Sponsor is optional — the top of the tree (first rep / owner) has no upline.
     const pctRaw = form.commissionPercent.trim();
-    if (pctRaw === "" || isNaN(Number(pctRaw))) return toast.error("Commission % is required");
-    if (!form.level.trim()) return toast.error("Level is required");
+    if (pctRaw === "" || isNaN(Number(pctRaw))) return toast.error(t("err_commission_required"));
+    if (!form.level.trim()) return toast.error(t("err_level_required"));
     addAgent({
       name: form.name.trim(),
       email: form.email.trim(),
@@ -528,34 +528,34 @@ function AgentsPanel() {
       level: form.level.trim(),
     });
     setForm({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
-    toast.success("Salesperson added");
+    toast.success(t("success_rep_added"));
   };
 
   return (
     <SectionCard
-      title="Sales team & sponsorship"
-      desc="Each salesperson has one sponsor (their upline). The tree drives override commissions."
+      title={t("sect_team")}
+      desc={t("sect_team_desc")}
     >
-      <div className="grid md:grid-cols-6 gap-3 mb-6 p-4 bg-muted/40 rounded-lg">
-        <div><Label>Name *</Label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 mb-6 p-4 bg-muted/40 rounded-lg">
+        <div><Label>{t("lbl_name")} *</Label>
           <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Jane Doe" />
         </div>
-        <div><Label>Email *</Label>
+        <div><Label>{t("lbl_email")} *</Label>
           <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="jane@…" />
         </div>
-        <div><Label>Sponsor (upline)</Label>
+        <div><Label>{t("lbl_sponsor")}</Label>
           <Select value={form.sponsorId || "none"} onValueChange={(v) => setForm({ ...form, sponsorId: v === "none" ? "" : v })}>
             <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">— None —</SelectItem>
+              <SelectItem value="none">{t("lbl_none_dash")}</SelectItem>
               {agents.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div><Label>Commission % *</Label>
+        <div><Label>{t("lbl_commission_pct")} *</Label>
           <Input type="number" step="0.1" value={form.commissionPercent} onChange={(e) => setForm({ ...form, commissionPercent: e.target.value })} placeholder="8" />
         </div>
-        <div><Label>Level *</Label>
+        <div><Label>{t("lbl_level")} *</Label>
           <Select value={form.level || "none"} onValueChange={(v) => setForm({ ...form, level: v === "none" ? "" : v })}>
             <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
             <SelectContent>
@@ -568,18 +568,18 @@ function AgentsPanel() {
           </Select>
         </div>
         <div className="flex items-end">
-          <Button onClick={submit} className="w-full"><Plus className="w-4 h-4 mr-2" />Add</Button>
+          <Button onClick={submit} className="w-full"><Plus className="w-4 h-4 mr-2" />{t("btn_add")}</Button>
         </div>
       </div>
 
-      {agents.length === 0 ? <Empty msg="No salespeople yet." /> : (
+      {agents.length === 0 ? <Empty msg={t("empty_no_reps")} /> : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground uppercase tracking-wider">
               <tr>
-                <th className="py-2">Name</th><th>Email</th><th>Sponsor</th>
-                <th>Commission %</th><th>Level</th>
-                <th>State</th><th>W-9</th><th>Tax %</th><th>Pay method</th>
+                <th className="py-2">{t("th_name")}</th><th>{t("th_email")}</th><th>{t("th_sponsor")}</th>
+                <th>{t("th_commission")}</th><th>{t("th_level")}</th>
+                <th>{t("th_state")}</th><th>{t("th_w9")}</th><th>{t("th_tax_pct")}</th><th>{t("th_pay_method")}</th>
                 <th className="w-12"></th>
               </tr>
             </thead>
@@ -592,7 +592,7 @@ function AgentsPanel() {
                     <Select value={a.sponsorId || "none"} onValueChange={(v) => updateAgent(a.id, { sponsorId: v === "none" ? null : v })}>
                       <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">— None —</SelectItem>
+                        <SelectItem value="none">{t("lbl_none_dash")}</SelectItem>
                         {agents.filter((x) => x.id !== a.id).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -627,9 +627,9 @@ function AgentsPanel() {
                     <Select value={a.w9Status ?? "missing"} onValueChange={(v: any) => updateAgent(a.id, { w9Status: v })}>
                       <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="missing">Missing</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="valid">Valid</SelectItem>
+                        <SelectItem value="missing">{t("w9_missing_lbl")}</SelectItem>
+                        <SelectItem value="pending">{t("w9_pending_lbl")}</SelectItem>
+                        <SelectItem value="valid">{t("w9_valid_lbl")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </td>
@@ -659,64 +659,65 @@ function AgentsPanel() {
 /* ---------- Finance Companies ---------- */
 function FinancePanel() {
   const { financeCompanies, addFinanceCo, updateFinanceCo, removeFinanceCo } = useStore();
+  const t = useT();
   const [form, setForm] = useState({
     name: "", defaultFee: 0, dealerFee: 0, adminFee: 0,
     usesApprovalDiscount: false, active: true, notes: "",
   });
 
   const submit = () => {
-    if (!form.name.trim()) return toast.error("Name required");
+    if (!form.name.trim()) return toast.error(t("err_name_required"));
     addFinanceCo({ ...form, name: form.name.trim() });
     setForm({ name: "", defaultFee: 0, dealerFee: 0, adminFee: 0, usesApprovalDiscount: false, active: true, notes: "" });
-    toast.success("Finance company added");
+    toast.success(t("success_finance_added"));
   };
 
   return (
-    <SectionCard title="Finance companies" desc="Default fees applied automatically on each invoice using this finance company.">
-      <div className="grid md:grid-cols-6 gap-3 mb-6 p-4 bg-muted/40 rounded-lg">
+    <SectionCard title={t("sect_finance")} desc={t("sect_finance_desc")}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 mb-6 p-4 bg-muted/40 rounded-lg">
         <div className="md:col-span-2">
-          <Label>Name</Label>
+          <Label>{t("lbl_name")}</Label>
           <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Goodleap" />
         </div>
-        <div><Label>Fee %</Label>
+        <div><Label>{t("lbl_fee_pct")}</Label>
           <Input type="number" step="0.1" value={form.defaultFee * 100} onChange={(e) => setForm({ ...form, defaultFee: Number(e.target.value) / 100 })} />
         </div>
-        <div><Label>Dealer fee</Label>
+        <div><Label>{t("lbl_dealer_fee_lbl")}</Label>
           <Input type="number" step="0.01" value={form.dealerFee} onChange={(e) => setForm({ ...form, dealerFee: Number(e.target.value) })} />
         </div>
-        <div><Label>Admin fee</Label>
+        <div><Label>{t("lbl_admin_fee_lbl")}</Label>
           <Input type="number" step="0.01" value={form.adminFee} onChange={(e) => setForm({ ...form, adminFee: Number(e.target.value) })} />
         </div>
-        <div className="flex items-end"><Button onClick={submit} className="w-full"><Plus className="w-4 h-4 mr-2" />Add</Button></div>
+        <div className="flex items-end"><Button onClick={submit} className="w-full"><Plus className="w-4 h-4 mr-2" />{t("btn_add")}</Button></div>
       </div>
 
-      {financeCompanies.length === 0 ? <Empty msg="No finance companies yet." /> : (
+      {financeCompanies.length === 0 ? <Empty msg={t("empty_no_finance")} /> : (
         <div className="space-y-3">
           {financeCompanies.map((f) => (
             <Card key={f.id} className="p-4">
               <div className="grid md:grid-cols-7 gap-3 items-end">
-                <div className="md:col-span-2"><Label className="text-xs">Name</Label>
+                <div className="md:col-span-2"><Label className="text-xs">{t("lbl_name")}</Label>
                   <Input value={f.name} onChange={(e) => updateFinanceCo(f.id, { name: e.target.value })} />
                 </div>
-                <div><Label className="text-xs">Fee %</Label>
+                <div><Label className="text-xs">{t("lbl_fee_pct")}</Label>
                   <Input type="number" step="0.1" value={(f.defaultFee * 100).toFixed(2)}
                     onChange={(e) => updateFinanceCo(f.id, { defaultFee: Number(e.target.value) / 100 })} />
                 </div>
-                <div><Label className="text-xs">Dealer fee</Label>
+                <div><Label className="text-xs">{t("lbl_dealer_fee_lbl")}</Label>
                   <Input type="number" step="0.01" value={f.dealerFee}
                     onChange={(e) => updateFinanceCo(f.id, { dealerFee: Number(e.target.value) })} />
                 </div>
-                <div><Label className="text-xs">Admin fee</Label>
+                <div><Label className="text-xs">{t("lbl_admin_fee_lbl")}</Label>
                   <Input type="number" step="0.01" value={f.adminFee}
                     onChange={(e) => updateFinanceCo(f.id, { adminFee: Number(e.target.value) })} />
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={f.active} onCheckedChange={(v) => updateFinanceCo(f.id, { active: v })} />
-                  <span className="text-xs">Active</span>
+                  <span className="text-xs">{t("lbl_active")}</span>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => removeFinanceCo(f.id)}><Trash2 className="w-4 h-4" /></Button>
               </div>
-              <div className="mt-3"><Label className="text-xs">Notes</Label>
+              <div className="mt-3"><Label className="text-xs">{t("lbl_notes")}</Label>
                 <Textarea value={f.notes} rows={2} onChange={(e) => updateFinanceCo(f.id, { notes: e.target.value })} />
               </div>
             </Card>
@@ -795,13 +796,13 @@ function InvoicesPanel() {
 
   const save = () => {
     const payload = { ...draft, agentId: isAdmin ? draft.agentId : myAgentId || draft.agentId };
-    if (!payload.agentId) return toast.error("Pick a salesperson");
-    if (!payload.customerName.trim()) return toast.error("Customer name required");
-    if (payload.salesAmount < 0 || payload.productCost < 0) return toast.error("Amounts cannot be negative");
-    if (payload.approvalPercent < 0 || payload.approvalPercent > 1) return toast.error("Approval must be 0–100%");
+    if (!payload.agentId) return toast.error(t("err_pick_rep"));
+    if (!payload.customerName.trim()) return toast.error(t("err_customer_required"));
+    if (payload.salesAmount < 0 || payload.productCost < 0) return toast.error(t("err_amounts_negative"));
+    if (payload.approvalPercent < 0 || payload.approvalPercent > 1) return toast.error(t("err_approval_range"));
     if (!isAdmin && editing) {
       const existing = s.invoices.find((x) => x.id === editing);
-      if (existing && existing.agentId !== myAgentId) return toast.error("You can only edit your own invoices");
+      if (existing && existing.agentId !== myAgentId) return toast.error(t("err_own_invoices"));
     }
     // Split commission validation: if a split exists, total must equal 100%
     if (payload.split && payload.split.participants.length > 0) {
@@ -815,15 +816,15 @@ function InvoicesPanel() {
     if (payload.status === "paid" || payload.paid) {
       const cur = editing ? s.invoices.find((x) => x.id === editing) : null;
       if (cur?.split && cur.split.participants.length > 0 && !cur.split.approvedAt) {
-        return toast.error("Approve the split commission before marking the invoice paid.");
+        return toast.error(t("err_split_approve"));
       }
     }
     if (editing) {
       s.updateInvoice(editing, payload);
-      toast.success("Invoice updated");
+      toast.success(t("success_invoice_updated"));
     } else {
       s.addInvoice(payload);
-      toast.success("Invoice created");
+      toast.success(t("success_invoice_created"));
     }
     setEditing(null);
     setDraft(myAgentId ? { ...blankInvoice(), agentId: myAgentId } : blankInvoice());
@@ -840,25 +841,25 @@ function InvoicesPanel() {
     setDraft({ ...draft, [key]: draft[key].filter((_, j) => j !== i) });
 
   return (
-    <div className="grid lg:grid-cols-[1fr_360px] gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
       <SectionCard
-        title={editing ? "Edit invoice" : "New invoice"}
-        desc="Fill the sale; profit, charges, credits and the grand total are calculated live."
+        title={t(editing ? "sect_invoice_edit" : "sect_invoice_new")}
+        desc={t("sect_invoice_desc")}
       >
-        <div className="grid md:grid-cols-3 gap-3">
-          <div><Label>Date</Label><Input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></div>
-          <div><Label>Status</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+          <div><Label>{t("lbl_date")}</Label><Input type="date" value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} /></div>
+          <div><Label>{t("lbl_status")}</Label>
             <Select value={draft.status} onValueChange={(v: any) => setDraft({ ...draft, status: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="on_hold">On hold</SelectItem>
+                <SelectItem value="draft">{t("status_draft")}</SelectItem>
+                <SelectItem value="pending">{t("status_pending")}</SelectItem>
+                <SelectItem value="paid">{t("status_paid")}</SelectItem>
+                <SelectItem value="on_hold">{t("status_on_hold")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div><Label>Salesperson</Label>
+          <div><Label>{t("lbl_salesperson")}</Label>
             <Select value={draft.agentId} onValueChange={(v) => {
               const ag = s.agents.find((a) => a.id === v);
               setDraft({
@@ -873,10 +874,10 @@ function InvoicesPanel() {
               </SelectContent>
             </Select>
           </div>
-          <div className="md:col-span-2"><Label>Customer</Label>
+          <div className="md:col-span-2"><Label>{t("lbl_customer")}</Label>
             <Input value={draft.customerName} onChange={(e) => setDraft({ ...draft, customerName: e.target.value })} placeholder="Customer name" />
           </div>
-          <div><Label>Finance company</Label>
+          <div><Label>{t("lbl_finance_co")}</Label>
             <Select value={draft.financeCompanyId || "none"} onValueChange={(v) => setDraft({ ...draft, financeCompanyId: v === "none" ? null : v })}>
               <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
               <SelectContent>
@@ -886,73 +887,73 @@ function InvoicesPanel() {
             </Select>
           </div>
 
-          <div><Label>Sales amount</Label>
+          <div><Label>{t("lbl_sales_amount")}</Label>
             <Input type="number" step="0.01" value={draft.salesAmount} onChange={(e) => setDraft({ ...draft, salesAmount: Number(e.target.value) })} />
           </div>
-          <div><Label>Product cost</Label>
+          <div><Label>{t("lbl_product_cost")}</Label>
             <Input type="number" step="0.01" value={draft.productCost} onChange={(e) => setDraft({ ...draft, productCost: Number(e.target.value) })} />
           </div>
-          <div><Label>Approval %</Label>
+          <div><Label>{t("lbl_approval_pct")}</Label>
             <Input type="number" step="0.1" value={(draft.approvalPercent * 100).toFixed(2)}
               onChange={(e) => setDraft({ ...draft, approvalPercent: Number(e.target.value) / 100 })} />
           </div>
-          <div><Label>Discount</Label>
+          <div><Label>{t("lbl_discount")}</Label>
             <Input type="number" step="0.01" value={draft.discount} onChange={(e) => setDraft({ ...draft, discount: Number(e.target.value) })} />
           </div>
-          <div><Label>Advance applied</Label>
+          <div><Label>{t("lbl_advance_applied")}</Label>
             <Input type="number" step="0.01" value={draft.advanceApplied} onChange={(e) => setDraft({ ...draft, advanceApplied: Number(e.target.value) })} />
           </div>
-          <div><Label>Special deductions</Label>
+          <div><Label>{t("lbl_special_deductions")}</Label>
             <Input type="number" step="0.01" value={draft.specialDeductions} onChange={(e) => setDraft({ ...draft, specialDeductions: Number(e.target.value) })} />
           </div>
-          <div><Label>{s.language === "es" ? "Reserva impuestos %" : "Tax reserve %"}</Label>
+          <div><Label>{t("lbl_tax_reserve_pct")}</Label>
             <Input type="number" step="0.1" value={(draft.taxReservePercent * 100).toFixed(2)}
               onChange={(e) => setDraft({ ...draft, taxReservePercent: Number(e.target.value) / 100 })} />
           </div>
-          <div><Label>{s.language === "es" ? "Tipo de venta" : "Sale type"}</Label>
+          <div><Label>{t("lbl_sale_type")}</Label>
             <Select value={draft.saleType || "finance"} onValueChange={(v: any) => setDraft({ ...draft, saleType: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="credit_card">{s.language === "es" ? "Tarjeta de crédito" : "Credit card"}</SelectItem>
-                <SelectItem value="finance">{s.language === "es" ? "Financiamiento" : "Finance"}</SelectItem>
-                <SelectItem value="check">{s.language === "es" ? "Cheque" : "Check"}</SelectItem>
-                <SelectItem value="wire">{s.language === "es" ? "Transferencia" : "Wire"}</SelectItem>
-                <SelectItem value="cash">{s.language === "es" ? "Depósito en efectivo" : "Cash deposit"}</SelectItem>
+                <SelectItem value="credit_card">{t("sale_credit_card")}</SelectItem>
+                <SelectItem value="finance">{t("sale_finance")}</SelectItem>
+                <SelectItem value="check">{t("sale_check")}</SelectItem>
+                <SelectItem value="wire">{t("sale_wire")}</SelectItem>
+                <SelectItem value="cash">{t("sale_cash")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div><Label>C.C.P.F. % {draft.saleType === "credit_card" ? "" : (s.language === "es" ? "(solo tarjeta)" : "(card only)")}</Label>
+          <div><Label>C.C.P.F. % {draft.saleType === "credit_card" ? "" : t("lbl_card_only")}</Label>
             <Input type="number" step="0.1" value={((draft.ccpfPercent ?? 0.035) * 100).toFixed(2)}
               onChange={(e) => setDraft({ ...draft, ccpfPercent: Number(e.target.value) / 100 })} />
           </div>
-          <div><Label>{s.language === "es" ? "Admin fee %" : "Admin fee %"}</Label>
+          <div><Label>{t("lbl_admin_fee_pct")}</Label>
             <Input type="number" step="0.1" value={((draft.adminFeePercent ?? 0) * 100).toFixed(2)}
               onChange={(e) => setDraft({ ...draft, adminFeePercent: Number(e.target.value) / 100 })} />
           </div>
-          <div><Label>{s.language === "es" ? "Finance Bank Dealer Fee" : "Finance Bank Dealer Fee"}</Label>
+          <div><Label>{t("lbl_dealer_fee")}</Label>
             <Input type="number" step="0.01"
-              placeholder={s.language === "es" ? "Usa el de la financiera" : "Defaults to finance co."}
+              placeholder={t("lbl_defaults_finance")}
               value={draft.dealerFee ?? ""}
               onChange={(e) => setDraft({ ...draft, dealerFee: e.target.value === "" ? undefined : Number(e.target.value) })} />
           </div>
-          <div><Label>{s.language === "es" ? "Advance aprobado" : "Approved Advance"}</Label>
+          <div><Label>{t("lbl_approved_advance")}</Label>
             <Input type="number" step="0.01" value={draft.approvedAdvanceAmount ?? 0}
               onChange={(e) => setDraft({ ...draft, approvedAdvanceAmount: Number(e.target.value) })} />
           </div>
-          <div><Label>{s.language === "es" ? "Balance pendiente del advance" : "Pending Advance Balance"}</Label>
+          <div><Label>{t("lbl_pending_advance")}</Label>
             <Input type="number" step="0.01" value={draft.pendingAdvanceBalance ?? 0}
               onChange={(e) => setDraft({ ...draft, pendingAdvanceBalance: Number(e.target.value) })} />
           </div>
-          <div><Label>{s.language === "es" ? "Nivel de comisión del vendedor (auto)" : "Sales Rep Commission Level (auto)"}</Label>
+          <div><Label>{t("lbl_commission_level")}</Label>
             <Input value={draft.commissionLevel ?? ""} readOnly disabled
-              placeholder={s.language === "es" ? "Se toma del vendedor" : "Pulled from salesperson"} />
+              placeholder={t("lbl_salesperson")} />
           </div>
-          <div><Label>{s.language === "es" ? "Comisión calculada sobre" : "Commission % applied to"}</Label>
+          <div><Label>{t("lbl_commission_base")}</Label>
             <Select value={draft.commissionBase || "profit"} onValueChange={(v: any) => setDraft({ ...draft, commissionBase: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="profit">{s.language === "es" ? "Ganancia (profit)" : "Profit"}</SelectItem>
-                <SelectItem value="product_cost">{s.language === "es" ? "Costo del producto" : "Product cost"}</SelectItem>
+                <SelectItem value="profit">{t("lbl_commission_base_profit")}</SelectItem>
+                <SelectItem value="product_cost">{t("lbl_commission_base_product")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -961,15 +962,15 @@ function InvoicesPanel() {
             const defaultPct = ag?.commissionPercent;
             const defaultLabel = defaultPct != null
               ? `${(defaultPct * 100).toFixed(2)}%`
-              : (s.language === "es" ? "tier por volumen" : "volume tier");
+              : t("lbl_volume_tier");
             return (
               <div><Label>
-                {s.language === "es" ? "Override comisión % (admin)" : "Commission % override (admin)"}
+                {t("lbl_commission_override")}
               </Label>
                 <Input
                   type="number"
                   step="0.1"
-                  placeholder={s.language === "es" ? `Default: ${defaultLabel}` : `Default: ${defaultLabel}`}
+                  placeholder={`Default: ${defaultLabel}`}
                   value={draft.commissionPercentOverride != null ? (draft.commissionPercentOverride * 100).toFixed(2) : ""}
                   onChange={(e) => setDraft({
                     ...draft,
@@ -981,12 +982,12 @@ function InvoicesPanel() {
           })()}
           <div className="flex items-end gap-2">
             <Switch checked={draft.paid} onCheckedChange={(v) => setDraft({ ...draft, paid: v })} disabled={!isAdmin} />
-            <span className="text-sm">Paid {isAdmin ? "" : "(admin only)"}</span>
+            <span className="text-sm">{t("lbl_paid_flag")} {isAdmin ? "" : t("lbl_admin_only")}</span>
           </div>
         </div>
 
-        <LineEditor title="Extra charges" rows={draft.charges} onAdd={() => addLine("charges")} onRemove={(i) => removeLine("charges", i)} onChange={(i, f, v) => updateLine("charges", i, f, v)} />
-        <LineEditor title="Credits" rows={draft.credits} onAdd={() => addLine("credits")} onRemove={(i) => removeLine("credits", i)} onChange={(i, f, v) => updateLine("credits", i, f, v)} />
+        <LineEditor title={t("lbl_extra_charges")} rows={draft.charges} onAdd={() => addLine("charges")} onRemove={(i) => removeLine("charges", i)} onChange={(i, f, v) => updateLine("charges", i, f, v)} />
+        <LineEditor title={t("lbl_credits")} rows={draft.credits} onAdd={() => addLine("credits")} onRemove={(i) => removeLine("credits", i)} onChange={(i, f, v) => updateLine("credits", i, f, v)} />
 
         <div className="flex gap-2 mt-4">
           <Button onClick={save}><Plus className="w-4 h-4 mr-2" />{editing ? "Update" : "Create invoice"}</Button>
@@ -996,16 +997,16 @@ function InvoicesPanel() {
         </div>
       </SectionCard>
 
-      <SectionCard title={t("preview_title")} desc="Updates as you type — before generating the PDF.">
-        <Row k="Sales amount" v={fmtMoney(draft.salesAmount, s.company.currency)} />
-        <Row k="Approval" v={fmtMoney(live.approvalAmount, s.company.currency)} />
-        <Row k="Discount" v={`- ${fmtMoney(draft.discount, s.company.currency)}`} />
-        <Row k="Total charges" v={`- ${fmtMoney(live.totalCharges, s.company.currency)}`} />
-        <Row k="Total credits" v={`+ ${fmtMoney(live.totalCredits, s.company.currency)}`} />
+      <SectionCard title={t("preview_title")} desc={t("sect_invoice_preview_desc")}>
+        <Row k={t("preview_sales")} v={fmtMoney(draft.salesAmount, s.company.currency)} />
+        <Row k={t("preview_approval")} v={fmtMoney(live.approvalAmount, s.company.currency)} />
+        <Row k={t("lbl_discount")} v={`- ${fmtMoney(draft.discount, s.company.currency)}`} />
+        <Row k={t("preview_total_charges")} v={`- ${fmtMoney(live.totalCharges, s.company.currency)}`} />
+        <Row k={t("preview_total_credits")} v={`+ ${fmtMoney(live.totalCredits, s.company.currency)}`} />
         <div className="border-t my-2" />
-        <Row k="Grand total" v={fmtMoney(live.grandTotal, s.company.currency)} bold />
-        <Row k="Product cost" v={`- ${fmtMoney(draft.productCost, s.company.currency)}`} />
-        <Row k="Net profit" v={fmtMoney(live.profit, s.company.currency)} accent bold />
+        <Row k={t("preview_grand_total")} v={fmtMoney(live.grandTotal, s.company.currency)} bold />
+        <Row k={t("preview_product_cost_lbl")} v={`- ${fmtMoney(draft.productCost, s.company.currency)}`} />
+        <Row k={t("preview_net_profit")} v={fmtMoney(live.profit, s.company.currency)} accent bold />
         {(() => {
           const ag = s.agents.find((a) => a.id === draft.agentId);
           const rate =
@@ -1060,7 +1061,7 @@ function InvoicesPanel() {
                       v={fmtMoney(Math.max(0, live.profit) * d.rate, s.company.currency)}
                     />
                   ))}
-                  <Row k="  Override total" v={fmtMoney(overrideTotal, s.company.currency)} bold />
+                  <Row k={`  ${t("preview_override_total")}`} v={fmtMoney(overrideTotal, s.company.currency)} bold />
                 </div>
               )}
               <Row k={t("preview_advance")} v={`- ${fmtMoney(draft.advanceApplied || 0, s.company.currency)}`} />
@@ -1075,17 +1076,17 @@ function InvoicesPanel() {
       </SectionCard>
 
       <div className="lg:col-span-2">
-        <SectionCard title={isAdmin ? "All invoices" : "My invoices"} desc={isAdmin ? "Click an invoice to edit, or download its PDF." : "Only your own invoices are shown."}>
+        <SectionCard title={t(isAdmin ? "sect_all_invoices" : "sect_my_invoices_lbl")} desc={t(isAdmin ? "sect_all_invoices_desc" : "sect_my_invoices_desc")}>
           {(() => {
             const visible = (isAdmin ? s.invoices : s.invoices.filter((i) => i.agentId === myAgentId)).slice().sort((a, b) => b.date.localeCompare(a.date));
-            if (visible.length === 0) return <Empty msg="No invoices yet." />;
+            if (visible.length === 0) return <Empty msg={t("empty_no_invoices")} />;
             return (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-muted-foreground uppercase tracking-wider">
                   <tr>
-                    <th className="py-2">Number</th><th>Date</th><th>Customer</th><th>Salesperson</th>
-                    <th>Status</th><th className="text-right">Sales</th><th className="text-right">Profit</th>
+                    <th className="py-2">{t("th_number")}</th><th>{t("th_date")}</th><th>{t("th_customer")}</th><th>{t("th_salesperson")}</th>
+                    <th>{t("th_status")}</th><th className="text-right">{t("th_sales")}</th><th className="text-right">{t("th_profit")}</th>
                     <th className="w-44"></th>
                   </tr>
                 </thead>
@@ -1120,7 +1121,7 @@ function InvoicesPanel() {
                         <td className="text-right font-mono">{fmtMoney(inv.salesAmount, s.company.currency)}</td>
                         <td className="text-right font-mono">{fmtMoney(c.profit, s.company.currency)}</td>
                         <td className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => editInvoice(inv.id)}>{isAdmin ? "Edit" : "View"}</Button>
+                          <Button variant="ghost" size="sm" onClick={() => editInvoice(inv.id)}>{isAdmin ? t("btn_edit") : t("btn_view")}</Button>
                           <Button variant="ghost" size="sm" title="Explain this commission" onClick={() => setExplainId(inv.id)}><HelpCircle className="w-4 h-4" /></Button>
                           <Button variant="ghost" size="sm" title="Request correction" onClick={() => setDisputeId(inv.id)}><MessageSquare className="w-4 h-4" /></Button>
                           {isAdmin && (
@@ -1132,7 +1133,7 @@ function InvoicesPanel() {
                             if (!inv.brandingSnapshot) s.updateInvoice(inv.id, { brandingSnapshot: makeBrandingSnapshot(s.company) });
                             const doc = buildSaleInvoicePDF(c, s.company, ag?.name || "—");
                             window.open(doc.output("bloburl"), "_blank");
-                          }}>Preview</Button>
+                          }}>{t("btn_preview")}</Button>
                           <Button variant="ghost" size="sm" onClick={() => {
                             if (!inv.brandingSnapshot) s.updateInvoice(inv.id, { brandingSnapshot: makeBrandingSnapshot(s.company) });
                             buildSaleAndDownload(c, s.company, ag?.name || "—");
@@ -1176,17 +1177,18 @@ function LineEditor({
   onRemove: (i: number) => void;
   onChange: (i: number, f: "label" | "amount", v: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="mt-5">
       <div className="flex items-center justify-between mb-2">
         <Label className="text-sm font-semibold">{title}</Label>
-        <Button variant="outline" size="sm" onClick={onAdd}><Plus className="w-3 h-3 mr-1" />Add line</Button>
+        <Button variant="outline" size="sm" onClick={onAdd}><Plus className="w-3 h-3 mr-1" />{t("btn_add_line")}</Button>
       </div>
       <div className="space-y-2">
-        {rows.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
+        {rows.length === 0 && <p className="text-xs text-muted-foreground">{t("empty_no_lines")}</p>}
         {rows.map((r, i) => (
           <div key={i} className="grid grid-cols-[1fr_140px_auto] gap-2">
-            <Input value={r.label} placeholder="Description" onChange={(e) => onChange(i, "label", e.target.value)} />
+            <Input value={r.label} placeholder={t("lbl_description")} onChange={(e) => onChange(i, "label", e.target.value)} />
             <Input type="number" step="0.01" value={r.amount} onChange={(e) => onChange(i, "amount", e.target.value)} />
             <Button variant="ghost" size="icon" onClick={() => onRemove(i)}><Trash2 className="w-4 h-4" /></Button>
           </div>
@@ -1205,6 +1207,7 @@ function PlanPanel() {
   } = useStore();
   const tierErrs = validateTiers(personalTiers);
   const ovErrs = validateOverrides(overrides);
+  const t = useT();
 
   const updTier = (i: number, field: "minVolume" | "rate", v: number) => {
     const next = [...personalTiers];
@@ -1268,24 +1271,24 @@ function PlanPanel() {
   return (
     <div className="space-y-6">
       <SectionCard
-        title="Compensation positions"
-        desc="Define position names (Junior Rep, Sales Rep, Manager, Dealer, Owner, custom) and the rules that apply when each one closes a sale."
+        title={t("sect_positions")}
+        desc={t("sect_positions_desc")}
         action={
           <div className="flex gap-2 flex-wrap">
             <Select onValueChange={(v) => addBlankPosition(v)}>
-              <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder="Add preset…" /></SelectTrigger>
+              <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder={t("btn_add_preset")} /></SelectTrigger>
               <SelectContent>
                 {presetNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => addBlankPosition()}>
-              <Plus className="w-4 h-4 mr-2" />Custom
+              <Plus className="w-4 h-4 mr-2" />{t("btn_custom")}
             </Button>
           </div>
         }
       >
         {positions.length === 0 ? (
-          <Empty msg="No positions yet. Add a preset or a custom position to start your compensation plan." />
+          <Empty msg={t("empty_no_positions")} />
         ) : (
           <div className="space-y-4">
             {positions.map((p) => (
@@ -1299,11 +1302,11 @@ function PlanPanel() {
                     />
                     <label className="flex items-center gap-2 text-xs">
                       <Switch checked={p.active} onCheckedChange={(v) => updatePosition(p.id, { active: v })} />
-                      {p.active ? "Active" : "Inactive"}
+                      {p.active ? t("lbl_active") : t("lbl_inactive")}
                     </label>
                     <label className="flex items-center gap-2 text-xs">
                       <Switch checked={p.overrideEligible} onCheckedChange={(v) => updatePosition(p.id, { overrideEligible: v })} />
-                      Override eligible
+                      {t("lbl_override_eligible")}
                     </label>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => removePosition(p.id)}>
@@ -1312,59 +1315,59 @@ function PlanPanel() {
                 </div>
 
                 <div className="grid md:grid-cols-4 gap-3">
-                  <div><Label className="text-xs">Commission %</Label>
+                  <div><Label className="text-xs">{t("lbl_commission_pct")}</Label>
                     <Input type="number" step="0.1" value={(p.commissionPercent * 100).toFixed(2)}
                       onChange={(e) => updatePosition(p.id, { commissionPercent: Number(e.target.value) / 100 })} />
                   </div>
-                  <div><Label className="text-xs">Fixed payout ({company.currency})</Label>
+                  <div><Label className="text-xs">{t("lbl_fixed_payout")} ({company.currency})</Label>
                     <Input type="number" value={p.fixedPayout}
                       onChange={(e) => updatePosition(p.id, { fixedPayout: Number(e.target.value) })} />
                   </div>
-                  <div><Label className="text-xs">Differential override %</Label>
+                  <div><Label className="text-xs">{t("lbl_diff_override")}</Label>
                     <Input type="number" step="0.1" value={(p.differentialOverridePercent * 100).toFixed(2)}
                       onChange={(e) => updatePosition(p.id, { differentialOverridePercent: Number(e.target.value) / 100 })} />
                   </div>
-                  <div><Label className="text-xs">Split default %</Label>
+                  <div><Label className="text-xs">{t("lbl_split_default")}</Label>
                     <Input type="number" step="1" value={(p.splitDefaultPercent * 100).toFixed(0)}
                       onChange={(e) => updatePosition(p.id, { splitDefaultPercent: Number(e.target.value) / 100 })} />
                   </div>
 
-                  <div><Label className="text-xs">Effective from</Label>
+                  <div><Label className="text-xs">{t("lbl_effective_from")}</Label>
                     <Input type="date" value={p.effectiveFrom}
                       onChange={(e) => updatePosition(p.id, { effectiveFrom: e.target.value })} />
                   </div>
-                  <div><Label className="text-xs">Effective to</Label>
+                  <div><Label className="text-xs">{t("lbl_effective_to")}</Label>
                     <Input type="date" value={p.effectiveTo}
                       onChange={(e) => updatePosition(p.id, { effectiveTo: e.target.value })} />
                   </div>
-                  <div><Label className="text-xs">Min approval %</Label>
+                  <div><Label className="text-xs">{t("lbl_min_approval")}</Label>
                     <Input type="number" step="1" value={(p.minApprovalPercent * 100).toFixed(0)}
                       onChange={(e) => updatePosition(p.id, { minApprovalPercent: Number(e.target.value) / 100 })} />
                   </div>
-                  <div><Label className="text-xs">Special deduction %</Label>
+                  <div><Label className="text-xs">{t("lbl_special_deduction_pct")}</Label>
                     <Input type="number" step="0.1" value={(p.specialDeductionPercent * 100).toFixed(2)}
                       onChange={(e) => updatePosition(p.id, { specialDeductionPercent: Number(e.target.value) / 100 })} />
                   </div>
 
-                  <div className="md:col-span-2"><Label className="text-xs">Finance company rule</Label>
+                  <div className="md:col-span-2"><Label className="text-xs">{t("lbl_finance_rule")}</Label>
                     <Select
                       value={p.financeCompanyId ?? "__all__"}
                       onValueChange={(v) => updatePosition(p.id, { financeCompanyId: v === "__all__" ? null : v })}
                     >
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__all__">All finance companies</SelectItem>
+                        <SelectItem value="__all__">{t("lbl_all_finance")}</SelectItem>
                         {financeCompanies.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="md:col-span-2"><Label className="text-xs">Product / SKU rule</Label>
+                  <div className="md:col-span-2"><Label className="text-xs">{t("lbl_product_rule")}</Label>
                     <Input value={p.productRule}
                       placeholder="e.g. softener systems only"
                       onChange={(e) => updatePosition(p.id, { productRule: e.target.value })} />
                   </div>
 
-                  <div className="md:col-span-4"><Label className="text-xs">Notes</Label>
+                  <div className="md:col-span-4"><Label className="text-xs">{t("lbl_notes")}</Label>
                     <Textarea rows={2} value={p.notes}
                       onChange={(e) => updatePosition(p.id, { notes: e.target.value })} />
                   </div>
@@ -1376,41 +1379,41 @@ function PlanPanel() {
       </SectionCard>
 
       <SectionCard
-        title="Sample-sale simulator"
-        desc="Validate a position against a hypothetical sale before activating the plan. Shows estimated commission with all rules applied."
+        title={t("sect_simulator")}
+        desc={t("sect_simulator_desc")}
       >
         {positions.length === 0 ? (
-          <Empty msg="Add a position above to simulate a sale." />
+          <Empty msg={t("empty_add_position")} />
         ) : (
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-3">
               <div><Label className="text-xs">Position</Label>
                 <Select value={sim.positionId} onValueChange={(v) => setSim({ ...sim, positionId: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select position…" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t("lbl_select_position")} /></SelectTrigger>
                   <SelectContent>
                     {positions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs">Sales amount</Label>
+                <div><Label className="text-xs">{t("lbl_sales_amount")}</Label>
                   <Input type="number" value={sim.salesAmount}
                     onChange={(e) => setSim({ ...sim, salesAmount: Number(e.target.value) })} />
                 </div>
-                <div><Label className="text-xs">Product cost</Label>
+                <div><Label className="text-xs">{t("lbl_product_cost")}</Label>
                   <Input type="number" value={sim.productCost}
                     onChange={(e) => setSim({ ...sim, productCost: Number(e.target.value) })} />
                 </div>
-                <div><Label className="text-xs">Approval %</Label>
+                <div><Label className="text-xs">{t("lbl_approval_pct")}</Label>
                   <Input type="number" step="1" value={(sim.approvalPercent * 100).toFixed(0)}
                     onChange={(e) => setSim({ ...sim, approvalPercent: Number(e.target.value) / 100 })} />
                 </div>
-                <div><Label className="text-xs">Finance company</Label>
+                <div><Label className="text-xs">{t("lbl_finance_co")}</Label>
                   <Select value={sim.financeCompanyId || "__none__"}
                     onValueChange={(v) => setSim({ ...sim, financeCompanyId: v === "__none__" ? "" : v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
+                      <SelectItem value="__none__">{t("lbl_none")}</SelectItem>
                       {financeCompanies.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
@@ -1420,26 +1423,26 @@ function PlanPanel() {
 
             <div className="rounded-lg bg-muted/40 p-4 text-sm space-y-1.5">
               {!simResult ? (
-                <p className="text-muted-foreground">Pick a position to see the estimated commission.</p>
+                <p className="text-muted-foreground">{t("sim_no_position")}</p>
               ) : (
                 <>
-                  <Row k="Approval amount" v={fmtMoney(simResult.approval, company.currency)} />
-                  <Row k="Finance fees" v={fmtMoney(simResult.financeFee, company.currency)} />
-                  <Row k="Grand total" v={fmtMoney(simResult.grand, company.currency)} />
-                  <Row k="Profit" v={fmtMoney(simResult.profit, company.currency)} />
-                  <Row k="Special deductions" v={fmtMoney(simResult.deductions, company.currency)} />
+                  <Row k={t("sim_approval")} v={fmtMoney(simResult.approval, company.currency)} />
+                  <Row k={t("sim_finance_fees")} v={fmtMoney(simResult.financeFee, company.currency)} />
+                  <Row k={t("sim_grand_total")} v={fmtMoney(simResult.grand, company.currency)} />
+                  <Row k={t("sim_profit")} v={fmtMoney(simResult.profit, company.currency)} />
+                  <Row k={t("sim_deductions")} v={fmtMoney(simResult.deductions, company.currency)} />
                   <div className="border-t border-border/60 my-2" />
-                  <Row k="Estimated commission" v={fmtMoney(simResult.commission, company.currency)} bold />
+                  <Row k={t("sim_commission")} v={fmtMoney(simResult.commission, company.currency)} bold />
                   {simResult.blocked && (
                     <p className="text-xs text-destructive flex items-start gap-1 mt-2">
                       <AlertCircle className="w-3.5 h-3.5 mt-0.5" />
-                      {!simPosition?.active && "Position is inactive. "}
-                      {simResult.blockedByApproval && "Approval % is below position minimum. "}
-                      {simResult.blockedByFinanceCo && "Finance company does not match position rule. "}
+                      {!simPosition?.active && t("sim_pos_inactive")}
+                      {simResult.blockedByApproval && t("sim_below_min")}
+                      {simResult.blockedByFinanceCo && t("sim_wrong_finance")}
                     </p>
                   )}
                   <p className="text-[11px] text-muted-foreground italic mt-2">
-                    Estimate only. Real payouts use the full invoice rules and overrides.
+                    {t("sim_estimate")}
                   </p>
                 </>
               )}
@@ -1450,22 +1453,22 @@ function PlanPanel() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <SectionCard
-          title="Personal commission tiers"
-          desc="Volume-based fallback rate when a salesperson has no position commission % set."
+          title={t("sect_tiers")}
+          desc={t("sect_tiers_desc")}
           action={
             <Button variant="outline" size="sm"
               onClick={() => setPersonalTiers([...personalTiers, { minVolume: 0, rate: 0 }])}>
-              <Plus className="w-4 h-4 mr-2" />Tier
+              <Plus className="w-4 h-4 mr-2" />{t("btn_tier")}
             </Button>}
         >
           <div className="space-y-2">
-            {personalTiers.map((t, i) => (
+            {personalTiers.map((tier, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
-                <div><Label className="text-xs">Min profit</Label>
-                  <Input type="number" value={t.minVolume} onChange={(e) => updTier(i, "minVolume", Number(e.target.value))} />
+                <div><Label className="text-xs">{t("lbl_min_profit")}</Label>
+                  <Input type="number" value={tier.minVolume} onChange={(e) => updTier(i, "minVolume", Number(e.target.value))} />
                 </div>
-                <div><Label className="text-xs">Rate (%)</Label>
-                  <Input type="number" step="0.1" value={(t.rate * 100).toFixed(2)}
+                <div><Label className="text-xs">{t("lbl_rate_pct")}</Label>
+                  <Input type="number" step="0.1" value={(tier.rate * 100).toFixed(2)}
                     onChange={(e) => updTier(i, "rate", Number(e.target.value) / 100)} />
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setPersonalTiers(personalTiers.filter((_, j) => j !== i))}>
@@ -1478,21 +1481,21 @@ function PlanPanel() {
         </SectionCard>
 
         <SectionCard
-          title="Downline override rates"
-          desc="Percentage paid to an upline on each downline level's profit."
+          title={t("sect_overrides")}
+          desc={t("sect_overrides_desc")}
           action={
             <Button variant="outline" size="sm"
               onClick={() => setOverrides([...overrides, { level: overrides.length + 1, rate: 0 }])}>
-              <Plus className="w-4 h-4 mr-2" />Level
+              <Plus className="w-4 h-4 mr-2" />{t("btn_level")}
             </Button>}
         >
           <div className="space-y-2">
             {overrides.map((o, i) => (
               <div key={i} className="grid grid-cols-[100px_1fr_auto] gap-3 items-end">
-                <div><Label className="text-xs">Level</Label>
+                <div><Label className="text-xs">{t("lbl_level")}</Label>
                   <Input type="number" min={1} value={o.level} onChange={(e) => updOv(i, "level", Number(e.target.value))} />
                 </div>
-                <div><Label className="text-xs">Rate (%)</Label>
+                <div><Label className="text-xs">{t("lbl_rate_pct")}</Label>
                   <Input type="number" step="0.1" value={(o.rate * 100).toFixed(2)}
                     onChange={(e) => updOv(i, "rate", Number(e.target.value) / 100)} />
                 </div>
@@ -1510,8 +1513,9 @@ function PlanPanel() {
 }
 
 function ValidationList({ errs }: { errs: string[] }) {
+  const t = useT();
   if (!errs.length)
-    return <p className="text-xs text-emerald-600 mt-3 flex items-center gap-1">✓ Valid configuration</p>;
+    return <p className="text-xs text-emerald-600 mt-3 flex items-center gap-1">{t("valid_config")}</p>;
   return (
     <ul className="mt-3 space-y-1">
       {errs.map((e, i) => (
@@ -1526,19 +1530,20 @@ function ValidationList({ errs }: { errs: string[] }) {
 /* ---------- Company ---------- */
 function CompanyPanel() {
   const { company, setCompany, invoiceDate, periodLabel, setInvoiceMeta, resetAll, currentUserName, setCurrentUserName } = useStore();
+  const t = useT();
   return (
     <div className="grid md:grid-cols-2 gap-6">
-      <SectionCard title="Company details" desc="Issuer information shown on every PDF.">
+      <SectionCard title={t("sect_company")} desc={t("sect_company_desc")}>
         <div className="grid gap-3">
-          <Field label="Company name" value={company.name} onChange={(v) => setCompany({ name: v })} />
-          <Field label="Address" value={company.address} onChange={(v) => setCompany({ address: v })} />
+          <Field label={t("lbl_company_name")} value={company.name} onChange={(v) => setCompany({ name: v })} />
+          <Field label={t("lbl_address")} value={company.address} onChange={(v) => setCompany({ address: v })} />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Phone" value={company.phone} onChange={(v) => setCompany({ phone: v })} />
-            <Field label="Billing email" value={company.email} onChange={(v) => setCompany({ email: v })} />
+            <Field label={t("lbl_phone")} value={company.phone} onChange={(v) => setCompany({ phone: v })} />
+            <Field label={t("lbl_billing_email")} value={company.email} onChange={(v) => setCompany({ email: v })} />
           </div>
-          <Field label="Tax ID" value={company.taxId} onChange={(v) => setCompany({ taxId: v })} />
-          <div className="grid grid-cols-3 gap-3">
-            <div><Label>Currency</Label>
+          <Field label={t("lbl_tax_id")} value={company.taxId} onChange={(v) => setCompany({ taxId: v })} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div><Label>{t("lbl_currency")}</Label>
               <Select value={company.currency} onValueChange={(v) => setCompany({ currency: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1548,35 +1553,35 @@ function CompanyPanel() {
                 </SelectContent>
               </Select>
             </div>
-            <Field label="Invoice prefix" value={company.invoicePrefix} onChange={(v) => setCompany({ invoicePrefix: v })} />
-            <div><Label>Brand color</Label>
+            <Field label={t("lbl_invoice_prefix")} value={company.invoicePrefix} onChange={(v) => setCompany({ invoicePrefix: v })} />
+            <div><Label>{t("lbl_brand_color")}</Label>
               <Input type="color" value={company.brandColor} onChange={(e) => setCompany({ brandColor: e.target.value })} />
             </div>
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="Payout run" desc="Metadata used for the next batch of commission PDFs.">
+      <SectionCard title={t("sect_payout_run")} desc={t("sect_payout_run_desc")}>
         <div className="grid gap-3">
           <Field
-            label="Current admin name (used in audit logs & PDF history)"
+            label={t("lbl_admin_name")}
             value={currentUserName}
             onChange={(v) => setCurrentUserName(v)}
           />
-          <div><Label>Invoice date</Label>
+          <div><Label>{t("lbl_invoice_date")}</Label>
             <Input type="date" value={invoiceDate} onChange={(e) => setInvoiceMeta(e.target.value, periodLabel)} />
           </div>
-          <Field label="Period label" value={periodLabel} onChange={(v) => setInvoiceMeta(invoiceDate, v)} />
+          <Field label={t("lbl_period_label")} value={periodLabel} onChange={(v) => setInvoiceMeta(invoiceDate, v)} />
         </div>
         <div className="border-t border-border/60 mt-6 pt-4">
-          <Button variant="destructive" size="sm" onClick={() => { if (confirm("Erase all data?")) resetAll(); }}>
-            Reset all data
+          <Button variant="destructive" size="sm" onClick={() => { if (confirm(t("confirm_reset"))) resetAll(); }}>
+            {t("btn_reset_data")}
           </Button>
         </div>
       </SectionCard>
 
       <div className="md:col-span-2">
-        <SectionCard title="Tax reserve by state" desc="Optional state-level tax reserve overrides (informational, not tax advice).">
+        <SectionCard title={t("sect_tax_reserve")} desc={t("sect_tax_reserve_desc")}>
           <TaxReserveByStateEditor />
         </SectionCard>
       </div>
@@ -1591,6 +1596,7 @@ function CompanyPanel() {
 /* ---------- Generate ---------- */
 function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> }) {
   const { company, invoiceDate, periodLabel } = useStore();
+  const t = useT();
   const total = payouts.reduce((a, p) => a + p.finalPayable, 0);
   const payable = payouts.filter((p) => p.grossPayout > 0);
 
@@ -1609,38 +1615,38 @@ function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> })
 
   return (
     <SectionCard
-      title="Commission payouts"
-      desc="One commission PDF per salesperson, plus an XLSX summary across the team."
+      title={t("sect_payouts")}
+      desc={t("sect_payouts_desc")}
       action={
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => downloadSummary(payouts, company, periodLabel)} disabled={!payouts.length}>
-            <FileDown className="w-4 h-4 mr-2" />XLSX summary
+            <FileDown className="w-4 h-4 mr-2" />{t("btn_xlsx_summary")}
           </Button>
           <Button onClick={() => downloadAllCommissionPDFs(payable, company, invoiceDate, periodLabel)}
             disabled={!payable.length} className="bg-gradient-primary">
-            <Sparkles className="w-4 h-4 mr-2" />Generate all ({payable.length})
+            <Sparkles className="w-4 h-4 mr-2" />{t("btn_generate_all")} ({payable.length})
           </Button>
         </div>
       }
     >
-      {payouts.length === 0 ? <Empty msg="Add salespeople and invoices first." /> : (
+      {payouts.length === 0 ? <Empty msg={t("empty_add_reps")} /> : (
         <div className="space-y-3">
           <div className="flex items-center justify-between text-sm bg-muted/40 rounded-lg px-4 py-3">
-            <span className="text-muted-foreground">Final payable for {periodLabel}</span>
+            <span className="text-muted-foreground">{t("gen_final_payable")} {periodLabel}</span>
             <span className="font-mono font-bold text-lg text-accent">{fmtMoney(total, company.currency)}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground uppercase tracking-wider">
                 <tr>
-                  <th className="py-2">Salesperson</th>
-                  <th className="text-right">Profit</th>
-                  <th className="text-right">Personal</th>
-                  <th className="text-right">Override</th>
-                  <th className="text-right">Advance</th>
-                  <th className="text-right">Net</th>
-                  <th className="text-right">Tax res.</th>
-                  <th className="text-right">Final</th>
+                  <th className="py-2">{t("th_salesperson")}</th>
+                  <th className="text-right">{t("th_profit")}</th>
+                  <th className="text-right">{t("th_personal")}</th>
+                  <th className="text-right">{t("th_override")}</th>
+                  <th className="text-right">{t("th_advance")}</th>
+                  <th className="text-right">{t("th_net")}</th>
+                  <th className="text-right">{t("th_tax_res")}</th>
+                  <th className="text-right">{t("th_final")}</th>
                   <th className="w-44"></th>
                 </tr>
               </thead>
@@ -1650,7 +1656,7 @@ function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> })
                     <td className="py-2">
                       <div className="font-medium">{p.agent.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {p.invoices.length} inv · {p.downline.length} downline
+                        {p.invoices.length} {t("gen_inv_count")} · {p.downline.length} {t("gen_downline_count")}
                       </div>
                     </td>
                     <td className="text-right font-mono">{fmtMoney(p.personalProfit, company.currency)}</td>
@@ -1664,7 +1670,7 @@ function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> })
                     <td className="text-right font-mono text-muted-foreground">{fmtMoney(p.taxReserveSuggested, company.currency)}</td>
                     <td className="text-right font-mono font-semibold">{fmtMoney(p.finalPayable, company.currency)}</td>
                     <td className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => previewOne(p.agent.id)} disabled={p.grossPayout <= 0}>Preview</Button>
+                      <Button variant="ghost" size="sm" onClick={() => previewOne(p.agent.id)} disabled={p.grossPayout <= 0}>{t("btn_preview")}</Button>
                       <Button variant="ghost" size="sm" onClick={() => downloadOne(p.agent.id)} disabled={p.grossPayout <= 0}>PDF</Button>
                     </td>
                   </tr>
@@ -1673,7 +1679,7 @@ function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> })
             </table>
           </div>
           <p className="text-xs text-muted-foreground italic">
-            Tax reserve is a suggestion only — not official tax advice.
+            {t("gen_tax_note")}
           </p>
         </div>
       )}
@@ -1685,11 +1691,12 @@ function ProductsPanel() {
   const s = useStore();
   const blank = { name: "", sku: "", kind: "product" as const, price: 0, cost: 0, priceEditable: true, active: true, notes: "" };
   const [draft, setDraft] = useState(blank);
+  const t = useT();
   const add = () => {
-    if (!draft.name.trim()) { toast.error("Name is required"); return; }
+    if (!draft.name.trim()) { toast.error(t("err_name_required")); return; }
     s.addProduct(draft);
     setDraft(blank);
-    toast.success("Product added");
+    toast.success(t("success_product_added"));
   };
   return (
     <div className="space-y-6">
@@ -1697,74 +1704,74 @@ function ProductsPanel() {
         <div className="flex items-center gap-2">
           <Package className="w-5 h-5 text-primary" />
           <div>
-            <h3 className="font-semibold">Products & service plans</h3>
-            <p className="text-xs text-muted-foreground">Admin-only catalog. Set a list price and choose whether reps may edit it on an invoice.</p>
+            <h3 className="font-semibold">{t("sect_products")}</h3>
+            <p className="text-xs text-muted-foreground">{t("sect_products_desc")}</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
           <div className="md:col-span-2">
-            <Label className="text-xs">Name *</Label>
+            <Label className="text-xs">{t("lbl_name")} *</Label>
             <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Premium Plan" />
           </div>
           <div>
-            <Label className="text-xs">SKU</Label>
+            <Label className="text-xs">{t("lbl_sku")}</Label>
             <Input value={draft.sku} onChange={(e) => setDraft({ ...draft, sku: e.target.value })} />
           </div>
           <div>
-            <Label className="text-xs">Type</Label>
+            <Label className="text-xs">{t("lbl_type")}</Label>
             <Select value={draft.kind} onValueChange={(v: any) => setDraft({ ...draft, kind: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="product">Product</SelectItem>
-                <SelectItem value="service">Service</SelectItem>
-                <SelectItem value="plan">Plan</SelectItem>
+                <SelectItem value="product">{t("prod_product")}</SelectItem>
+                <SelectItem value="service">{t("prod_service")}</SelectItem>
+                <SelectItem value="plan">{t("prod_plan")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div>
-            <Label className="text-xs">Price</Label>
+            <Label className="text-xs">{t("lbl_price")}</Label>
             <Input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} />
           </div>
           <div>
-            <Label className="text-xs">Cost</Label>
+            <Label className="text-xs">{t("lbl_cost")}</Label>
             <Input type="number" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: Number(e.target.value) })} />
           </div>
           <div className="md:col-span-5 flex items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={draft.priceEditable} onCheckedChange={(v) => setDraft({ ...draft, priceEditable: v })} />
-              Allow price edit on invoice
+              {t("lbl_allow_price_edit")}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <Switch checked={draft.active} onCheckedChange={(v) => setDraft({ ...draft, active: v })} />
-              Active
+              {t("lbl_active")}
             </label>
           </div>
           <div className="md:col-span-1 flex items-end">
-            <Button onClick={add} className="w-full"><Plus className="w-4 h-4 mr-1" />Add</Button>
+            <Button onClick={add} className="w-full"><Plus className="w-4 h-4 mr-1" />{t("btn_add")}</Button>
           </div>
           <div className="md:col-span-6">
-            <Label className="text-xs">Notes</Label>
+            <Label className="text-xs">{t("lbl_notes")}</Label>
             <Textarea rows={2} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
           </div>
         </div>
       </Card>
 
       <Card className="p-5 space-y-3">
-        <h3 className="font-semibold">Catalog ({s.products.length})</h3>
+        <h3 className="font-semibold">{t("sect_catalog")} ({s.products.length})</h3>
         {s.products.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No products yet.</p>
+          <p className="text-sm text-muted-foreground">{t("empty_no_products")}</p>
         ) : (
           <div className="overflow-auto">
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b">
-                  <th className="text-left p-2">Name</th>
-                  <th className="text-left p-2">SKU</th>
-                  <th className="text-left p-2">Type</th>
-                  <th className="text-right p-2">Price</th>
-                  <th className="text-right p-2">Cost</th>
-                  <th className="text-center p-2">Editable</th>
-                  <th className="text-center p-2">Active</th>
+                  <th className="text-left p-2">{t("lbl_name")}</th>
+                  <th className="text-left p-2">{t("th_sku")}</th>
+                  <th className="text-left p-2">{t("lbl_type")}</th>
+                  <th className="text-right p-2">{t("lbl_price")}</th>
+                  <th className="text-right p-2">{t("lbl_cost")}</th>
+                  <th className="text-center p-2">{t("th_editable")}</th>
+                  <th className="text-center p-2">{t("lbl_active")}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -1777,9 +1784,9 @@ function ProductsPanel() {
                       <Select value={p.kind} onValueChange={(v: any) => s.updateProduct(p.id, { kind: v })}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="product">Product</SelectItem>
-                          <SelectItem value="service">Service</SelectItem>
-                          <SelectItem value="plan">Plan</SelectItem>
+                          <SelectItem value="product">{t("prod_product")}</SelectItem>
+                          <SelectItem value="service">{t("prod_service")}</SelectItem>
+                          <SelectItem value="plan">{t("prod_plan")}</SelectItem>
                         </SelectContent>
                       </Select>
                     </td>

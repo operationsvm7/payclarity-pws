@@ -810,7 +810,7 @@ export const useStore = create<State>()(
       periodLabel: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
       nextPayoutDate: todayPlus(14),
       taxReserveByState: {},
-      language: "en" as Lang,
+      language: "es" as Lang,
       setLanguage: (language) => set({ language }),
       setTaxReserveByState: (taxReserveByState) => set({ taxReserveByState }),
 
@@ -1134,7 +1134,7 @@ export const useStore = create<State>()(
           periodLabel: new Date().toLocaleString("en-US", { month: "long", year: "numeric" }),
           nextPayoutDate: todayPlus(14),
           taxReserveByState: {},
-          language: "en" as Lang,
+          language: "es" as Lang,
           role: "admin" as Role,
           activeAgentId: null,
           notifications: [],
