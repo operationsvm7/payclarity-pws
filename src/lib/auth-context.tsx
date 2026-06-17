@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    window.location.replace("/login");
   }
 
   return (
