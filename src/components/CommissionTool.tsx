@@ -104,6 +104,15 @@ export default function CommissionTool() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.role]);
 
+  // For reps: auto-set activeAgentId to their own agent record after data loads
+  useEffect(() => {
+    if (!dataLoaded || profile?.role !== "rep") return;
+    supabase.rpc("my_agent_id").then(({ data: agentId }) => {
+      if (agentId) s.setActiveAgentId(agentId);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoaded, profile?.role]);
+
   const isAdmin = s.role === "admin";
   const isRep = s.role === "rep";
   const canManage = isAdmin; // accountant: view-only on management
