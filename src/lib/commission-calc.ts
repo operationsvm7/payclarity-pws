@@ -110,7 +110,10 @@ function collectDownline(
   children: Map<string | null, Agent[]>
 ): { agent: Agent; level: number }[] {
   const out: { agent: Agent; level: number }[] = [];
+  const visited = new Set<string>();
   const walk = (id: string, level: number) => {
+    if (visited.has(id)) return;
+    visited.add(id);
     for (const k of children.get(id) || []) {
       out.push({ agent: k, level });
       walk(k.id, level + 1);
