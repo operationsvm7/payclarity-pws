@@ -1142,6 +1142,8 @@ export const useStore = create<State>()(
         }),
 
       loadDemoData: () => {
+        // Prevent duplicate demo loads
+        if (get().agents.some((a) => a.email?.endsWith("@demo.co"))) return;
         const today = new Date();
         const dateAt = (offset: number) => {
           const d = new Date(today);
