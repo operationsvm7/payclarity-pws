@@ -405,6 +405,9 @@ function DashboardQuickActions({
 }) {
   const s = useStore();
   const t = useT();
+  const { profile } = useAuth();
+  // Hide demo loader when connected to a real Supabase company
+  const isLiveAccount = !!profile?.company_id;
 
   const generateTestPdf = () => {
     let inv = s.invoices[0];
@@ -460,17 +463,19 @@ function DashboardQuickActions({
           <FileDown className="w-4 h-4 mr-2" />
           {t("qa_test_pdf")}
         </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            s.loadDemoData();
-            toast.success(t("demo_loaded"));
-          }}
-        >
-          <Sparkles className="w-4 h-4 mr-2" />
-          {t("qa_load_demo")}
-        </Button>
+        {!isLiveAccount && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              s.loadDemoData();
+              toast.success(t("demo_loaded"));
+            }}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            {t("qa_load_demo")}
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={onWizard}>
           <Wand2 className="w-4 h-4 mr-2" />Setup wizard
         </Button>
