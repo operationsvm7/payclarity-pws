@@ -22,14 +22,32 @@ import {
 export function useSupabaseSync() {
   const { profile } = useAuth();
   const companyId = profile?.company_id ?? null;
-  const startedLoad = useRef(false);
+  const loadedCompanyId = useRef<string | null>(null);
   const loadComplete = useRef(false);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   // ── LOAD ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!companyId || startedLoad.current) return;
-    startedLoad.current = true;
+    if (!companyId) return;
+
+    // Company switched (or first load after sign-in) — wipe stale data immediately
+    if (loadedCompanyId.current !== companyId) {
+      useStore.setState({
+        agents: [],
+        financeCompanies: [],
+        invoices: [],
+        payments: [],
+        adjustments: [],
+        disputes: [],
+        notifications: [],
+      });
+      loadComplete.current = false;
+      setDataLoaded(false);
+      loadedCompanyId.current = companyId;
+    } else {
+      // Same company already loaded — skip
+      return;
+    }
 
     async function loadData() {
       const [

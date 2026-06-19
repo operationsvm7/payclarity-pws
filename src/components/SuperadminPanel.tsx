@@ -83,7 +83,7 @@ function fmt(dt: string) {
 // ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function SuperadminPanel() {
-  const { signOut } = useAuth();
+  const { profile, signOut } = useAuth();
   const [companies, setCompanies] = useState<CompanySummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"companies" | "users">("companies");
@@ -101,6 +101,19 @@ export default function SuperadminPanel() {
   // All users tab
   const [allUsers, setAllUsers] = useState<(CompanyUser & { company_name: string })[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+
+  // Defense-in-depth: verify role client-side in addition to the route guard in __root.tsx
+  if (profile && profile.role !== "superadmin") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <ShieldAlert className="mx-auto mb-3 w-10 h-10 text-destructive" />
+          <p className="font-semibold text-foreground">Acceso denegado</p>
+          <p className="text-sm text-muted-foreground mt-1">No tienes permisos para ver esta página.</p>
+        </div>
+      </div>
+    );
+  }
 
   async function loadCompanies() {
     setLoading(true);
