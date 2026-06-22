@@ -680,57 +680,69 @@ export default function SuperadminPanel() {
               ) : superadmins.length === 0 ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">No hay superadmins registrados</div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40">
-                      <TableHead>Usuario</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Registrado</TableHead>
-                      <TableHead className="w-40">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {superadmins.map((sa) => (
-                      <TableRow key={sa.id} className="hover:bg-muted/20">
-                        <TableCell>
-                          <p className="font-medium text-sm">{sa.full_name ?? sa.email}</p>
-                          <p className="text-xs text-muted-foreground">{sa.email}</p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={
-                            sa.status === "active"   ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                            sa.status === "pending"  ? "bg-amber-100 text-amber-700 border-amber-200" :
-                            "bg-red-100 text-red-700 border-red-200"
-                          }>
-                            {sa.status === "active" ? "Activo" : sa.status === "pending" ? "Pendiente" : "Rechazado"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{fmt(sa.created_at)}</TableCell>
-                        <TableCell>
-                          {sa.status === "pending" && sa.id !== profile?.id && (
-                            <div className="flex gap-1.5">
+                <div className="divide-y divide-border">
+                  {superadmins.map((sa) => {
+                    const isMe = sa.id === profile?.id;
+                    const initials = (sa.full_name ?? sa.email ?? "?")
+                      .split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                    return (
+                      <div key={sa.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/20 transition-colors">
+                        {/* Avatar */}
+                        <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center shrink-0">
+                          <span className="text-white text-sm font-bold">{initials}</span>
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold truncate">{sa.full_name ?? sa.email}</p>
+                            {isMe && (
+                              <span className="text-[10px] bg-sky-100 text-sky-700 border border-sky-200 px-1.5 py-0.5 rounded font-medium">
+                                Tú
+                              </span>
+                            )}
+                            <Badge className={
+                              sa.status === "active"  ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                              sa.status === "pending" ? "bg-amber-100 text-amber-700 border-amber-200" :
+                                                        "bg-red-100 text-red-700 border-red-200"
+                            }>
+                              {sa.status === "active" ? "Activo" : sa.status === "pending" ? "Pendiente" : "Rechazado"}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{sa.email} · {fmt(sa.created_at)}</p>
+                        </div>
+
+                        {/* Actions — always same width slot */}
+                        <div className="shrink-0 flex gap-1.5">
+                          {!isMe && sa.status === "pending" && (
+                            <>
                               <Button size="sm" variant="outline"
-                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 text-xs h-7"
+                                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 text-xs h-8"
                                 onClick={() => handleApproveSuperadmin(sa.id)}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Aprobar
                               </Button>
                               <Button size="sm" variant="outline"
-                                className="text-destructive border-destructive/30 hover:bg-destructive/5 text-xs h-7"
+                                className="text-destructive border-destructive/30 hover:bg-destructive/5 text-xs h-8"
                                 onClick={() => handleRejectSuperadmin(sa.id)}
                               >
                                 <Ban className="w-3.5 h-3.5 mr-1" /> Rechazar
                               </Button>
-                            </div>
+                            </>
                           )}
-                          {sa.id === profile?.id && (
-                            <span className="text-xs text-muted-foreground">Tú</span>
+                          {!isMe && sa.status === "active" && (
+                            <Button size="sm" variant="outline"
+                              className="text-destructive border-destructive/30 hover:bg-destructive/5 text-xs h-8"
+                              onClick={() => handleRejectSuperadmin(sa.id)}
+                            >
+                              <Ban className="w-3.5 h-3.5 mr-1" /> Revocar
+                            </Button>
                           )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
