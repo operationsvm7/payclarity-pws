@@ -239,7 +239,7 @@ export default function SuperadminPanel() {
       <header className="sticky top-0 z-10 border-b border-sky-200/60 bg-white/95 backdrop-blur-md shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0B1F3A] to-[#0EA5E9] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-gradient-duo flex items-center justify-center">
               <ShieldAlert className="w-4.5 h-4.5 text-white" />
             </div>
             <div>
@@ -265,13 +265,13 @@ export default function SuperadminPanel() {
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Empresas totales",  value: totalCompanies,  icon: Building2,    color: "text-sky-600" },
-            { label: "Empresas activas",  value: activeCompanies, icon: Activity,     color: "text-emerald-600" },
-            { label: "Usuarios totales",  value: totalUsers,      icon: Users,        color: "text-violet-600" },
-            { label: "Planes activos",    value: activeCompanies, icon: Package,      color: "text-amber-600" },
-          ].map(({ label, value, icon: Icon, color }) => (
+            { label: "Empresas totales",  value: totalCompanies,  icon: Building2,    bg: "bg-sky-50",         color: "text-sky-600" },
+            { label: "Empresas activas",  value: activeCompanies, icon: Activity,     bg: "bg-emerald-50",     color: "text-emerald-600" },
+            { label: "Usuarios totales",  value: totalUsers,      icon: Users,        bg: "bg-violet-50",      color: "text-violet-600" },
+            { label: "Planes activos",    value: activeCompanies, icon: Package,      bg: "bg-orange-muted",   color: "text-orange" },
+          ].map(({ label, value, icon: Icon, bg, color }) => (
             <div key={label} className="bg-white rounded-xl border border-border p-4 flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center ${color}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${bg} ${color}`}>
                 <Icon className="w-4.5 h-4.5" />
               </div>
               <div>
@@ -291,7 +291,7 @@ export default function SuperadminPanel() {
                 onClick={() => setTab(t)}
                 className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   tab === t
-                    ? "bg-[#0B1F3A] text-white shadow-sm"
+                    ? "bg-gradient-duo text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -303,7 +303,7 @@ export default function SuperadminPanel() {
           {tab === "companies" && (
             <Button
               size="sm"
-              className="bg-[#0B1F3A] hover:bg-[#0EA5E9] text-white gap-1.5"
+              className="bg-gradient-orange shadow-orange text-white hover:opacity-90 gap-1.5"
               onClick={() => setCreateOpen(true)}
             >
               <Plus className="w-4 h-4" />

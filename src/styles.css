@@ -28,6 +28,9 @@
   --color-success-foreground: var(--success-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-orange: var(--orange);
+  --color-orange-foreground: var(--orange-foreground);
+  --color-orange-muted: var(--orange-muted);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -72,6 +75,11 @@
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
 
+  /* orange — professional amber-orange, pairs with navy */
+  --orange:            #EA580C;   /* orange-600 */
+  --orange-foreground: #FFFFFF;
+  --orange-muted:      #FFF7ED;   /* orange-50 */
+
   --border: #BAE6FD;              /* sky-200 – soft blue edge */
   --input: #E0F2FE;
   --ring: #0EA5E9;
@@ -81,6 +89,9 @@
   --gradient-cta:     linear-gradient(135deg, #0284C7 0%, #22D3EE 100%);
   --gradient-hero:    linear-gradient(135deg, #0B1929 0%, #0B3A6E 50%, #0369A1 100%);
   --gradient-subtle:  linear-gradient(180deg, #EFF6FF 0%, #E0F2FE 100%);
+  /* navy → orange: signature dual-brand gradient */
+  --gradient-duo:     linear-gradient(135deg, #0B1F3A 0%, #1E3A5F 45%, #EA580C 100%);
+  --gradient-orange:  linear-gradient(135deg, #C2410C 0%, #EA580C 100%);
 
   /* shadows */
   --shadow-card:     0 1px 3px rgb(14 165 233 / 0.08), 0 6px 24px rgb(14 165 233 / 0.07);
@@ -109,6 +120,9 @@
   --success-foreground: oklch(0.12 0.03 248);
   --destructive: oklch(0.63 0.22 25);
   --destructive-foreground: oklch(0.97 0.005 248);
+  --orange:            oklch(0.62 0.19 42);   /* warm orange, dark-mode friendly */
+  --orange-foreground: oklch(0.12 0.03 248);
+  --orange-muted:      oklch(0.24 0.04 42);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 14%);
   --ring: oklch(0.65 0.18 210);
@@ -136,12 +150,21 @@
   .bg-gradient-primary { background: var(--gradient-primary); }
   .bg-gradient-cta     { background: var(--gradient-cta); }
   .bg-gradient-hero    { background: var(--gradient-hero); }
+  .bg-gradient-duo     { background: var(--gradient-duo); }
+  .bg-gradient-orange  { background: var(--gradient-orange); }
+
+  /* orange solid helpers */
+  .bg-orange        { background-color: var(--orange); }
+  .text-orange      { color: var(--orange); }
+  .border-orange    { border-color: var(--orange); }
+  .bg-orange-muted  { background-color: var(--orange-muted); }
 
   /* shadows */
   .shadow-card    { box-shadow: var(--shadow-card); }
   .shadow-elegant { box-shadow: var(--shadow-elegant); }
   .shadow-glow    { box-shadow: var(--shadow-glow); }
   .shadow-btn     { box-shadow: var(--shadow-btn); }
+  .shadow-orange  { box-shadow: 0 8px 32px -8px rgb(234 88 12 / 0.35); }
 
   /* glow text */
   .text-gradient-cta {

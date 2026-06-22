@@ -443,7 +443,7 @@ function DashboardQuickActions({
         </div>
         <Button
           size="lg"
-          className="bg-gradient-primary shadow-elegant"
+          className="bg-gradient-duo shadow-orange text-white hover:opacity-90"
           onClick={() => onNav("invoices", "invoices")}
         >
           <Plus className="w-4 h-4 mr-2" />
