@@ -38,7 +38,10 @@ export function UserManagementPanel() {
   async function loadData() {
     setLoading(true);
     const [{ data: profiles }, { data: config }] = await Promise.all([
-      supabase.from("profiles").select("*").order("created_at", { ascending: true }),
+      supabase.from("profiles").select("*")
+        .eq("company_id", myProfile?.company_id ?? "")
+        .eq("is_superadmin", false)
+        .order("created_at", { ascending: true }),
       supabase.from("company_config").select("invite_code").single(),
     ]);
     setUsers((profiles as ProfileRow[]) ?? []);
