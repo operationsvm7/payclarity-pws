@@ -102,6 +102,12 @@ export default function SuperadminPanel() {
   const [allUsers, setAllUsers] = useState<(CompanyUser & { company_name: string })[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
+  // Assign company to admin
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignTarget, setAssignTarget] = useState<(CompanyUser & { company_name: string }) | null>(null);
+  const [assignedCompanyIds, setAssignedCompanyIds] = useState<string[]>([]);
+  const [assigning, setAssigning] = useState(false);
+
   // Superadmins tab
   const [superadmins, setSuperadmins] = useState<CompanyUser[]>([]);
   const [superadminsLoading, setSuperadminsLoading] = useState(false);
@@ -280,6 +286,37 @@ export default function SuperadminPanel() {
     loadPendingCount();
     if (detailCompany) openDetail(detailCompany);
     if (tab === "users") loadAllUsers();
+  }
+
+  async function openAssign(user: CompanyUser & { company_name: string }) {
+    setAssignTarget(user);
+    const { data } = await supabase
+      .from("user_company_access")
+      .select("company_id")
+      .eq("user_id", user.id);
+    setAssignedCompanyIds((data ?? []).map((r: any) => r.company_id));
+    setAssignOpen(true);
+  }
+
+  async function handleAssignCompany(companyId: string, companyName: string) {
+    if (!assignTarget) return;
+    setAssigning(true);
+    // Add to access table
+    const { error } = await supabase
+      .from("user_company_access")
+      .insert({ user_id: assignTarget.id, company_id: companyId, role: "admin" });
+    if (error) { toast.error("Error: " + error.message); setAssigning(false); return; }
+    // If user has no active company yet, set this as their primary
+    if (!assignTarget.company_name || assignTarget.company_name === "—") {
+      await supabase
+        .from("profiles")
+        .update({ company_id: companyId, role: "admin" })
+        .eq("id", assignTarget.id);
+    }
+    toast.success(`Empresa "${companyName}" asignada a ${assignTarget.full_name ?? assignTarget.email}`);
+    setAssigning(false);
+    setAssignOpen(false);
+    loadAllUsers();
   }
 
   async function openDetail(company: CompanySummary) {
@@ -621,6 +658,16 @@ export default function SuperadminPanel() {
                               </Button>
                             </div>
                           )}
+                          {u.status === "active" && u.role === "admin" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => openAssign(u)}
+                            >
+                              <Plus className="w-3.5 h-3.5" /> Empresa
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -890,6 +937,45 @@ export default function SuperadminPanel() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailCompany(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── ASSIGN COMPANY DIALOG ─────────────────────────────────────── */}
+      <Dialog open={assignOpen} onOpenChange={(o) => { if (!o) setAssignOpen(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Asignar empresa — {assignTarget?.full_name ?? assignTarget?.email}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2 max-h-72 overflow-y-auto">
+            {companies
+              .filter((c) => !assignedCompanyIds.includes(c.id))
+              .map((c) => (
+                <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30">
+                  <div>
+                    <p className="text-sm font-medium">{c.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{c.invite_code ?? "—"}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-gradient-orange shadow-orange text-white hover:opacity-90"
+                    disabled={assigning}
+                    onClick={() => handleAssignCompany(c.id, c.name)}
+                  >
+                    Asignar
+                  </Button>
+                </div>
+              ))}
+            {companies.filter((c) => !assignedCompanyIds.includes(c.id)).length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Este admin ya tiene acceso a todas las empresas.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

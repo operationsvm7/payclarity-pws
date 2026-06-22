@@ -99,7 +99,7 @@ export default function CommissionTool() {
   const t = useT();
   const navGroups = makeNavGroups(t);
   const repGroups = makeRepGroups(t);
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, companiesList, switchCompany } = useAuth();
   const { dataLoaded } = useSupabaseSync();
 
   // Sync Zustand role with the authenticated user's role from Supabase
@@ -192,7 +192,9 @@ export default function CommissionTool() {
             </div>
             <div className="min-w-0">
               <h1 className="text-base font-bold leading-tight tracking-tight truncate">{t("app_title")}</h1>
-              <p className="text-[10px] text-muted-foreground hidden sm:block">{t("app_subtitle")}</p>
+              <p className="text-[10px] text-muted-foreground hidden sm:block truncate max-w-[160px]">
+                {s.company.name || t("app_subtitle")}
+              </p>
             </div>
           </div>
 
@@ -271,6 +273,27 @@ export default function CommissionTool() {
                   <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
                   <p className="text-xs text-accent capitalize mt-0.5">{s.role}</p>
                 </div>
+                {companiesList.length > 1 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-3 py-1.5">
+                      <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Mis empresas</p>
+                    </div>
+                    {companiesList.map((c) => (
+                      <DropdownMenuItem
+                        key={c.id}
+                        className="cursor-pointer gap-2"
+                        onClick={() => switchCompany(c.id)}
+                      >
+                        <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <span className="flex-1 truncate text-sm">{c.name}</span>
+                        {c.id === profile?.company_id && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 {canManage && (
                   <DropdownMenuItem onClick={() => setWizardOpen(true)} className="cursor-pointer">

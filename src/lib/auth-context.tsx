@@ -17,12 +17,20 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface CompanyAccess {
+  id: string;
+  name: string;
+  role: UserRole;
+}
+
 interface AuthContextValue {
   user: User | null;
   profile: Profile | null;
+  companiesList: CompanyAccess[];
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  switchCompany: (companyId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -30,45 +38,46 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [companiesList, setCompaniesList] = useState<CompanyAccess[]>([]);
   const [loading, setLoading] = useState(true);
 
-  async function fetchProfile(userId: string): Promise<Profile | null> {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      console.error("Error fetching profile:", error);
-      return null;
-    }
-    return data as Profile;
+  async function fetchAll(userId: string) {
+    const [{ data: profileData }, { data: accessData }] = await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase
+        .from("user_company_access")
+        .select("company_id, role, companies(id, name)")
+        .eq("user_id", userId),
+    ]);
+    setProfile((profileData as Profile) ?? null);
+    setCompaniesList(
+      (accessData ?? []).map((a: any) => ({
+        id: a.companies?.id ?? a.company_id,
+        name: a.companies?.name ?? "—",
+        role: a.role as UserRole,
+      }))
+    );
   }
 
   async function refreshProfile() {
     if (!user) return;
-    const p = await fetchProfile(user.id);
-    setProfile(p);
+    await fetchAll(user.id);
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-        const p = await fetchProfile(session.user.id);
-        setProfile(p);
-      }
+      if (session?.user) await fetchAll(session.user.id);
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        const p = await fetchProfile(session.user.id);
-        setProfile(p);
+        await fetchAll(session.user.id);
       } else {
         setProfile(null);
+        setCompaniesList([]);
       }
       setLoading(false);
     });
@@ -76,15 +85,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  async function switchCompany(companyId: string) {
+    if (!user) return;
+    const c = companiesList.find((x) => x.id === companyId);
+    if (!c) return;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ company_id: companyId, role: c.role })
+      .eq("id", user.id);
+    if (!error) await fetchAll(user.id);
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
+    setCompaniesList([]);
     window.location.replace("/login");
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, companiesList, loading, signOut, refreshProfile, switchCompany }}>
       {children}
     </AuthContext.Provider>
   );
