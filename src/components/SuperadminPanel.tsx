@@ -153,6 +153,7 @@ export default function SuperadminPanel() {
     const { data, error } = await supabase
       .from("profiles")
       .select("id, email, full_name, role, status, created_at, companies(name)")
+      .eq("is_superadmin", false)
       .order("created_at", { ascending: false });
     if (error) {
       toast.error("Error cargando usuarios: " + error.message);
