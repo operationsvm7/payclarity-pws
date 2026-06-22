@@ -77,25 +77,26 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     if (session) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("status, role")
+        .select("status, role, company_id")
         .eq("id", session.user.id)
         .single();
 
       const isSuperadmin = profile?.role === "superadmin";
-      const isApproved = profile?.status === "active" && profile?.role != null;
+      const hasCompany   = !!profile?.company_id;
+      const isApproved   = profile?.status === "active" && profile?.role != null;
 
       if (!isApproved && !isSuperadmin) {
-        // Session exists but user is not approved yet — sign out and block
         await supabase.auth.signOut();
         if (!isAuthRoute) throw redirect({ to: "/login" });
         return;
       }
 
       if (isAuthRoute) {
-        throw redirect({ to: isSuperadmin ? "/superadmin" : "/" });
+        // Superadmin con empresa asociada → app principal; sin empresa → panel superadmin
+        throw redirect({ to: isSuperadmin ? (hasCompany ? "/" : "/superadmin") : "/" });
       }
 
-      // Block non-superadmins from accessing superadmin route
+      // Block non-superadmins from /superadmin
       if (location.pathname.startsWith("/superadmin") && !isSuperadmin) {
         throw redirect({ to: "/" });
       }

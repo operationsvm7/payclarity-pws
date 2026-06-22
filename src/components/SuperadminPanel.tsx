@@ -252,6 +252,55 @@ export default function SuperadminPanel() {
             <Button variant="ghost" size="sm" onClick={loadCompanies} title="Refrescar">
               <RefreshCw className="w-4 h-4" />
             </Button>
+            {/* Superadmin linked to a company → go to main app */}
+            {profile?.company_id ? (
+              <Button
+                size="sm"
+                className="bg-gradient-duo text-white hover:opacity-90 gap-1.5"
+                onClick={() => { window.location.href = "/"; }}
+              >
+                <Building2 className="w-4 h-4" />
+                Ir al app
+              </Button>
+            ) : (
+              /* Not linked yet — show company picker */
+              companies.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      <Building2 className="w-4 h-4" />
+                      Vincular empresa
+                      <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-3 py-2 text-xs text-muted-foreground">
+                      Elige tu empresa de trabajo
+                    </div>
+                    <DropdownMenuSeparator />
+                    {companies.map((c) => (
+                      <DropdownMenuItem
+                        key={c.id}
+                        className="cursor-pointer"
+                        onClick={async () => {
+                          if (!profile) return;
+                          const { error } = await supabase
+                            .from("profiles")
+                            .update({ company_id: c.id })
+                            .eq("id", profile.id);
+                          if (error) { toast.error("Error: " + error.message); return; }
+                          toast.success(`Vinculado a ${c.name}. Recarga para entrar al app.`);
+                          window.location.href = "/";
+                        }}
+                      >
+                        <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
+                        {c.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )
+            )}
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="w-4 h-4 mr-1.5" />
               Salir

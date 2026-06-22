@@ -273,6 +273,18 @@ export default function CommissionTool() {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
+                {profile?.role === "superadmin" && (
+                  <>
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={() => { window.location.href = "/superadmin"; }}
+                    >
+                      <ShieldAlert className="w-4 h-4 mr-2 text-orange" />
+                      Panel Superadmin
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer" onClick={() => signOut()}>
                   <LogOut className="w-4 h-4 mr-2" />
                   {t("menu_sign_out")}
