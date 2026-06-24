@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Sparkles, Eye, EyeOff, AlertCircle, CheckCircle2, HelpCircle, Globe } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useStore } from "@/lib/commission-store";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/register")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -38,6 +39,7 @@ function RegisterPage() {
   const navigate = useNavigate();
   const { superadmin_invite: saInvite } = Route.useSearch();
   const { language, setLanguage } = useStore();
+  const T = useT();
 
   const langBtn = (
     <button
@@ -70,7 +72,7 @@ function RegisterPage() {
         p_token: saInvite,
       });
       if (!valid) {
-        setServerError("El enlace de invitación no es válido o ya fue usado.");
+        setServerError(T("reg_error_invalid_code"));
         return;
       }
 
@@ -82,7 +84,7 @@ function RegisterPage() {
 
       if (signUpError) {
         setServerError(signUpError.message.includes("already registered")
-          ? "Ya existe una cuenta con este correo."
+          ? T("reg_error_email_exists")
           : signUpError.message);
         return;
       }
@@ -95,11 +97,11 @@ function RegisterPage() {
 
     // ── Normal company flow ───────────────────────────────────────────────────
     const { data: companyId, error: rpcError } = await supabase.rpc("verify_invite_code", {
-      code: values.inviteCode,
+      code: values.inviteCode ?? "",
     });
 
     if (rpcError || !companyId) {
-      setServerError("Invalid company code. Contact your administrator to get the correct code.");
+      setServerError(T("reg_error_invalid_code"));
       return;
     }
 
@@ -114,7 +116,7 @@ function RegisterPage() {
 
     if (signUpError) {
       setServerError(signUpError.message.includes("already registered")
-        ? "An account with this email already exists."
+        ? T("reg_error_email_exists")
         : signUpError.message);
       return;
     }
@@ -131,19 +133,17 @@ function RegisterPage() {
             <CheckCircle2 className="w-8 h-8 text-success" />
           </div>
           <h2 className="text-2xl font-bold text-foreground mb-2">
-            {isSuperadminInvite ? "¡Solicitud enviada!" : "Registration complete!"}
+            {T(isSuperadminInvite ? "reg_success_title_superadmin" : "reg_success_title")}
           </h2>
           <p className="text-muted-foreground mb-6">
-            {isSuperadminInvite
-              ? "Tu cuenta de superadmin fue creada y está pendiente de aprobación. Un superadmin existente debe aprobarla antes de que puedas entrar."
-              : "Your account has been created and is waiting for an administrator to approve it. You'll be able to sign in once your access is granted."}
+            {T(isSuperadminInvite ? "reg_success_msg_superadmin" : "reg_success_msg")}
           </p>
           <Button
             variant="outline"
             onClick={() => navigate({ to: "/login" })}
             className="w-full"
           >
-            {isSuperadminInvite ? "Ir al login" : "Back to sign in"}
+            {T("reg_back_login")}
           </Button>
         </div>
       </div>
@@ -160,19 +160,17 @@ function RegisterPage() {
             <Sparkles className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">PayClarity</h1>
-          <p className="text-sm text-muted-foreground mt-1">Commission management platform</p>
+          <p className="text-sm text-muted-foreground mt-1">{T("reg_platform_subtitle")}</p>
         </div>
 
         {/* Card */}
         <div className="bg-card border border-border rounded-2xl shadow-card p-8">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground">
-              {isSuperadminInvite ? "Crear cuenta de Superadmin" : "Create an account"}
+              {T(isSuperadminInvite ? "reg_title_superadmin" : "reg_title")}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {isSuperadminInvite
-                ? "Tu acceso será revisado y aprobado por un superadmin existente."
-                : "You'll need a company code from your administrator."}
+              {T(isSuperadminInvite ? "reg_subtitle_superadmin" : "reg_subtitle")}
             </p>
           </div>
 
@@ -185,11 +183,11 @@ function RegisterPage() {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="fullName">Full name</Label>
+              <Label htmlFor="fullName">{T("reg_fullname")}</Label>
               <Input
                 id="fullName"
                 type="text"
-                placeholder="Jane Smith"
+                placeholder={T("reg_fullname_placeholder")}
                 autoComplete="name"
                 {...register("fullName")}
                 className={errors.fullName ? "border-destructive" : ""}
@@ -204,7 +202,7 @@ function RegisterPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@company.com"
+                placeholder={T("email_placeholder")}
                 autoComplete="email"
                 {...register("email")}
                 className={errors.email ? "border-destructive" : ""}
@@ -215,12 +213,12 @@ function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{T("reg_password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPass ? "text" : "password"}
-                  placeholder="Min. 8 characters"
+                  placeholder={T("reg_password_placeholder")}
                   autoComplete="new-password"
                   {...register("password")}
                   className={errors.password ? "border-destructive pr-10" : "pr-10"}
@@ -240,12 +238,12 @@ function RegisterPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <Label htmlFor="confirmPassword">{T("reg_confirm_password")}</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirm ? "text" : "password"}
-                  placeholder="Repeat password"
+                  placeholder={T("reg_confirm_placeholder")}
                   autoComplete="new-password"
                   {...register("confirmPassword")}
                   className={errors.confirmPassword ? "border-destructive pr-10" : "pr-10"}
@@ -267,14 +265,14 @@ function RegisterPage() {
             {!isSuperadminInvite && (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5">
-                  <Label htmlFor="inviteCode">Company code</Label>
+                  <Label htmlFor="inviteCode">{T("reg_company_code")}</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs">Ask your administrator for the company access code.</p>
+                        <p className="text-xs">{T("reg_company_code_tooltip")}</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -282,7 +280,7 @@ function RegisterPage() {
                 <Input
                   id="inviteCode"
                   type="text"
-                  placeholder="Enter your company code"
+                  placeholder={T("reg_company_code_placeholder")}
                   autoComplete="off"
                   {...register("inviteCode")}
                   className={errors.inviteCode ? "border-destructive uppercase tracking-widest" : "uppercase tracking-widest"}
@@ -298,20 +296,20 @@ function RegisterPage() {
               className="w-full mt-6 bg-gradient-orange shadow-orange text-white hover:opacity-90"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creating account…" : "Create account"}
+              {T(isSubmitting ? "reg_btn_loading" : "reg_btn")}
             </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
-            Already have an account?{" "}
+            {T("reg_have_account")}{" "}
             <Link to="/login" className="text-orange font-medium hover:opacity-80 transition-opacity">
-              Sign in
+              {T("reg_signin_link")}
             </Link>
           </p>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          © {new Date().getFullYear()} PayClarity. All rights reserved.
+          © {new Date().getFullYear()} PayClarity. {T("copyright")}
         </p>
       </div>
     </div>

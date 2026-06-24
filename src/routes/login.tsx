@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, AlertCircle, Clock, Zap, Globe } from "lucide-react";
 import { useStore } from "@/lib/commission-store";
+import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -23,6 +24,7 @@ type FormValues = z.infer<typeof schema>;
 function LoginPage() {
   const navigate = useNavigate();
   const { language, setLanguage } = useStore();
+  const T = useT();
   const [showPass, setShowPass] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [pendingUser, setPendingUser] = useState(false);
@@ -45,7 +47,7 @@ function LoginPage() {
     if (error) {
       setServerError(
         error.message === "Invalid login credentials"
-          ? "Incorrect email or password."
+          ? T("login_error_invalid")
           : error.message,
       );
       return;
@@ -61,7 +63,7 @@ function LoginPage() {
 
       if (profile?.status === "rejected") {
         await supabase.auth.signOut();
-        setServerError("Your account has been rejected. Contact your administrator.");
+        setServerError(T("login_error_rejected"));
         return;
       }
 
@@ -115,17 +117,20 @@ function LoginPage() {
         <div className="relative z-10 space-y-6">
           <div>
             <h2 className="text-4xl font-bold text-white leading-tight">
-              Claridad en cada<br />
-              <span className="text-orange">comisión.</span>
+              {T("login_hero_title1")}<br />
+              <span className="text-orange">{T("login_hero_title2")}</span>
             </h2>
             <p className="mt-4 text-sky-200/80 text-lg leading-relaxed max-w-sm">
-              Gestiona pagos, splits y reportes de todo tu equipo en un solo lugar.
+              {T("login_hero_desc")}
             </p>
           </div>
 
           {/* feature pills */}
           <div className="flex flex-wrap gap-3">
-            {["Commission Wallet", "Payout Calendar", "Split Rules", "Team Reports"].map((f) => (
+            {(language === "es"
+              ? ["Cartera", "Cal. de pagos", "Split Rules", "Reportes"]
+              : ["Commission Wallet", "Payout Calendar", "Split Rules", "Team Reports"]
+            ).map((f) => (
               <span
                 key={f}
                 className="px-3 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-medium backdrop-blur-sm"
@@ -138,7 +143,7 @@ function LoginPage() {
 
         {/* bottom tagline */}
         <p className="relative z-10 text-sky-300/60 text-sm">
-          Claridad en cada comisión.
+          {T("login_hero_tagline")}
         </p>
       </div>
 
@@ -155,8 +160,8 @@ function LoginPage() {
 
           {/* heading */}
           <div>
-            <h2 className="text-2xl font-bold text-foreground">Bienvenido</h2>
-            <p className="text-muted-foreground mt-1 text-sm">Inicia sesión en tu cuenta</p>
+            <h2 className="text-2xl font-bold text-foreground">{T("login_welcome")}</h2>
+            <p className="text-muted-foreground mt-1 text-sm">{T("login_subtitle")}</p>
           </div>
 
           {/* alerts */}
@@ -164,10 +169,8 @@ function LoginPage() {
             <div className="flex gap-3 p-4 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-800">
               <Clock className="w-5 h-5 mt-0.5 flex-shrink-0 text-amber-500" />
               <div>
-                <p className="text-sm font-semibold">Cuenta pendiente de aprobación</p>
-                <p className="text-sm mt-0.5 text-amber-700">
-                  Un administrador debe activar tu cuenta. Te notificaremos cuando tengas acceso.
-                </p>
+                <p className="text-sm font-semibold">{T("login_pending_title")}</p>
+                <p className="text-sm mt-0.5 text-amber-700">{T("login_pending_msg")}</p>
               </div>
             </div>
           )}
@@ -188,7 +191,7 @@ function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="tu@empresa.com"
+                placeholder={T("email_placeholder")}
                 autoComplete="email"
                 {...register("email")}
                 className={errors.email ? "border-destructive focus-visible:border-destructive" : ""}
@@ -203,7 +206,7 @@ function LoginPage() {
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-semibold text-foreground">
-                Contraseña
+                {T("login_password")}
               </Label>
               <div className="relative">
                 <Input
@@ -244,26 +247,27 @@ function LoginPage() {
               {isSubmitting ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Iniciando sesión…
+                  {T("login_btn_loading")}
                 </span>
               ) : (
-                "Iniciar sesión"
+                T("login_btn")
               )}
             </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
-            ¿No tienes cuenta?{" "}
+            {T("login_no_account")}{" "}
             <Link
               to="/register"
+              search={{ superadmin_invite: undefined }}
               className="text-orange font-semibold hover:opacity-80 transition-opacity"
             >
-              Regístrate
+              {T("login_register_link")}
             </Link>
           </p>
 
           <p className="text-center text-xs text-muted-foreground/60">
-            © 2026 PayClarity. Todos los derechos reservados.
+            © 2026 PayClarity. {T("copyright")}
           </p>
         </div>
       </div>
