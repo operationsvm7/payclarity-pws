@@ -434,10 +434,10 @@ export function ExplainDialog({
     if (inv.productCost) bullets.push(`El costo del producto fue ${m(inv.productCost)}.`);
     bullets.push(`${c.financeCo?.name || "La financiera"} aprobó el ${pct(inv.approvalPercent)} de la venta → ${m(c.approvalAmount)}.`);
     if (inv.discount) bullets.push(`Se aplicó un descuento de ${m(inv.discount)}.`);
-    if (c.financeCo && inv.saleType === "finance") bullets.push(`Comisión de ${c.financeCo.name}: ${m(c.financeCo.defaultFee * inv.salesAmount)} + admin fee ${m(c.financeCo.adminFee)}.`);
-    if (dealerFeeVal > 0) bullets.push(`Dealer Fee del banco financiero: ${m(dealerFeeVal)}.`);
+    if (c.financeCo && inv.saleType === "finance") bullets.push(`Comisión de ${c.financeCo.name}: ${m(c.financeCo.defaultFee * inv.salesAmount)} + tarifa admin ${m(c.financeCo.adminFee)}.`);
+    if (dealerFeeVal > 0) bullets.push(`Cuota dealer bancario: ${m(dealerFeeVal)}.`);
     if (ccpfVal > 0) bullets.push(`Cargo por procesamiento de tarjeta (CCPF al ${pct(inv.ccpfPercent ?? 0.035)}): ${m(ccpfVal)}.`);
-    if (adminFeeVal > 0) bullets.push(`Admin Fee al ${pct(inv.adminFeePercent || 0)}: ${m(adminFeeVal)}.`);
+    if (adminFeeVal > 0) bullets.push(`Tarifa admin al ${pct(inv.adminFeePercent || 0)}: ${m(adminFeeVal)}.`);
     if (inv.charges.length) inv.charges.forEach((ch) => bullets.push(`Cargo adicional — ${ch.label || "cargo"}: ${m(ch.amount)}.`));
     if (inv.credits.length) inv.credits.forEach((cr) => bullets.push(`Crédito agregado — ${cr.label || "crédito"}: ${m(cr.amount)}.`));
     bullets.push(`El profit final fue ${m(c.profit)}.`);
