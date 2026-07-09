@@ -82,18 +82,22 @@ begin
   -- ── 10. Borrar company_config ──────────────────────────────────────
   delete from public.company_config;
 
-  -- ── 11. Borrar empresas ────────────────────────────────────────────
-  delete from public.companies;
-
-  get diagnostics deleted_cos = row_count;
-  raise notice 'Empresas eliminadas: %', deleted_cos;
-
-  -- ── 12. Limpiar company_id del superadmin (ya debería ser null) ────
+  -- ── 11. Limpiar FKs del superadmin ANTES de borrar empresas ────────
+  --    (profiles.company_id y user_company_access deben ir primero)
   if superadmin_ids is not null then
     update public.profiles
     set company_id = null
     where id = any(superadmin_ids);
   end if;
+  if exists (select from pg_tables where schemaname = 'public' and tablename = 'user_company_access') then
+    delete from public.user_company_access;
+  end if;
+
+  -- ── 12. Borrar empresas ────────────────────────────────────────────
+  delete from public.companies;
+
+  get diagnostics deleted_cos = row_count;
+  raise notice 'Empresas eliminadas: %', deleted_cos;
 
   raise notice '──────────────────────────────────────────────';
   raise notice 'RESET COMPLETO. Base de datos lista para pruebas.';

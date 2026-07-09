@@ -301,21 +301,34 @@ export default function SuperadminPanel() {
   async function handleAssignCompany(companyId: string, companyName: string) {
     if (!assignTarget) return;
     setAssigning(true);
-    // Add to access table
     const { error } = await supabase
       .from("user_company_access")
       .insert({ user_id: assignTarget.id, company_id: companyId, role: "admin" });
     if (error) { toast.error("Error: " + error.message); setAssigning(false); return; }
-    // If user has no active company yet, set this as their primary
     if (!assignTarget.company_name || assignTarget.company_name === "—") {
       await supabase
         .from("profiles")
         .update({ company_id: companyId, role: "admin" })
         .eq("id", assignTarget.id);
     }
-    toast.success(`Empresa "${companyName}" asignada a ${assignTarget.full_name ?? assignTarget.email}`);
+    toast.success(`Empresa "${companyName}" asignada`);
+    setAssignedCompanyIds((prev) => [...prev, companyId]);
     setAssigning(false);
-    setAssignOpen(false);
+    loadAllUsers();
+  }
+
+  async function handleRemoveCompany(companyId: string, companyName: string) {
+    if (!assignTarget) return;
+    setAssigning(true);
+    const { error } = await supabase
+      .from("user_company_access")
+      .delete()
+      .eq("user_id", assignTarget.id)
+      .eq("company_id", companyId);
+    if (error) { toast.error("Error: " + error.message); setAssigning(false); return; }
+    toast.success(`Empresa "${companyName}" desvinculada`);
+    setAssignedCompanyIds((prev) => prev.filter((id) => id !== companyId));
+    setAssigning(false);
     loadAllUsers();
   }
 
@@ -946,30 +959,66 @@ export default function SuperadminPanel() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              Asignar empresa — {assignTarget?.full_name ?? assignTarget?.email}
+              Empresas — {assignTarget?.full_name ?? assignTarget?.email}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 py-2 max-h-72 overflow-y-auto">
-            {companies
-              .filter((c) => !assignedCompanyIds.includes(c.id))
-              .map((c) => (
-                <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30">
-                  <div>
-                    <p className="text-sm font-medium">{c.name}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{c.invite_code ?? "—"}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    className="bg-gradient-orange shadow-orange text-white hover:opacity-90"
-                    disabled={assigning}
-                    onClick={() => handleAssignCompany(c.id, c.name)}
-                  >
-                    Asignar
-                  </Button>
-                </div>
-              ))}
+          <div className="space-y-3 py-2 max-h-80 overflow-y-auto">
+            {/* Already assigned */}
+            {assignedCompanyIds.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-1">Ya vinculadas</p>
+                {companies
+                  .filter((c) => assignedCompanyIds.includes(c.id))
+                  .map((c) => (
+                    <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-emerald-200 bg-emerald-50/50">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium">{c.name}</p>
+                          <p className="text-xs text-muted-foreground font-mono">{c.invite_code ?? "—"}</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive border-destructive/30 hover:bg-destructive/5 text-xs h-7"
+                        disabled={assigning}
+                        onClick={() => handleRemoveCompany(c.id, c.name)}
+                      >
+                        Desvincular
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {/* Available to assign */}
+            {companies.filter((c) => !assignedCompanyIds.includes(c.id)).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-1">Disponibles</p>
+                {companies
+                  .filter((c) => !assignedCompanyIds.includes(c.id))
+                  .map((c) => (
+                    <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30">
+                      <div>
+                        <p className="text-sm font-medium">{c.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{c.invite_code ?? "—"}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="bg-gradient-orange shadow-orange text-white hover:opacity-90"
+                        disabled={assigning}
+                        onClick={() => handleAssignCompany(c.id, c.name)}
+                      >
+                        Asignar
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            )}
+
             {companies.filter((c) => !assignedCompanyIds.includes(c.id)).length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-2">
                 Este admin ya tiene acceso a todas las empresas.
               </p>
             )}
