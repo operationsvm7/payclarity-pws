@@ -235,13 +235,15 @@ export default function CommissionTool() {
   }, [s.deepLink?.ts, s.deepLink?.tab]);
 
   // Open Setup Wizard after Supabase data loads, only if company has no data yet.
+  // Do NOT open while the multi-company picker is shown — user hasn't chosen a company yet.
   useEffect(() => {
     if (!dataLoaded) return;
+    if (pickerMode) return;
     if (isAdmin && s.agents.length === 0 && s.invoices.length === 0 && !s.wizard?.completed) {
       setWizardOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataLoaded]);
+  }, [dataLoaded, pickerMode]);
 
   void s; // reserved
   const payouts = useMemo(
