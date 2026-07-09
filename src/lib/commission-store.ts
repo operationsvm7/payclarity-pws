@@ -1324,7 +1324,7 @@ export const useStore = create<State>()(
         if (persisted?.company) {
           persisted.company = {
             logoDataUrl: "",
-            brandColorSecondary: "#4F6BFF",
+            brandColorSecondary: "#2563EB",
             footerText: "Thank you for your business.",
             disclaimerText:
               "All amounts are subject to verification. Tax reserves are suggestions, not official tax advice.",

@@ -776,6 +776,48 @@ export function SplitEditorDialog({
           </Button>
         </div>
 
+        {/* Visual stacked bar */}
+        {participants.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex h-4 rounded-full overflow-hidden gap-px">
+              {participants.map((p, i) => {
+                const COLORS = [
+                  "bg-blue-500","bg-emerald-500","bg-violet-500","bg-amber-500",
+                  "bg-rose-500","bg-cyan-500","bg-orange-500","bg-pink-500",
+                ];
+                return (
+                  <div
+                    key={p.id}
+                    className={`${COLORS[i % COLORS.length]} transition-all duration-200`}
+                    style={{ width: `${Math.max(0, (p.splitPercent || 0) * 100)}%` }}
+                    title={`${p.displayName || "Participant"}: ${((p.splitPercent || 0) * 100).toFixed(1)}%`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {participants.map((p, i) => {
+                const COLORS = [
+                  "bg-blue-500","bg-emerald-500","bg-violet-500","bg-amber-500",
+                  "bg-rose-500","bg-cyan-500","bg-orange-500","bg-pink-500",
+                ];
+                return (
+                  <span key={p.id} className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className={`w-2 h-2 rounded-full ${COLORS[i % COLORS.length]}`} />
+                    {p.displayName || `P${i + 1}`}
+                    <span className="font-mono font-semibold text-foreground">
+                      {((p.splitPercent || 0) * 100).toFixed(1)}%
+                    </span>
+                    <span className="font-mono text-accent">
+                      {fmtMoney(pool * (p.splitPercent || 0), s.company.currency)}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2 max-h-[40vh] overflow-y-auto">
           {participants.map((p, i) => (
             <div

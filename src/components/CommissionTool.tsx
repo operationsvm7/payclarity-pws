@@ -12,7 +12,7 @@ import {
   Trash2, Plus, FileDown, Sparkles, Users, Receipt, Layers, Building2, Banknote, AlertCircle,
   Wallet, Calculator, CalendarDays, BookTemplate, MessageSquare, HelpCircle, Shield, UserRound,
   LayoutDashboard, FileBarChart, FileSpreadsheet, Languages, Wand2, Settings2, Upload, Package,
-  Split as SplitIcon, Activity, LogOut, ChevronDown, Users2, ShieldAlert,
+  Split as SplitIcon, Activity, LogOut, ChevronDown, Users2, ShieldAlert, ArrowRight, ChevronLeft,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -57,8 +57,7 @@ function makeNavGroups(t: (key: any) => string): NavGroup[] {
       { id: "wallet", label: t("tab_wallet"), icon: Wallet },
     ]},
     { id: "compensation", label: t("nav_compensation"), tabs: [
-      { id: "plan", label: t("tab_plan"), icon: Layers },
-      { id: "splits", label: t("tab_splits"), icon: SplitIcon },
+      { id: "plan", label: t("nav_compensation"), icon: Layers },
       { id: "finance", label: t("tab_finance"), icon: Banknote },
       { id: "products", label: t("tab_products"), icon: Package },
     ]},
@@ -94,6 +93,77 @@ function makeRepGroups(t: (key: any) => string): NavGroup[] {
   ];
 }
 
+/* ---------- Multi-company Dashboard ---------- */
+const MC_COLORS = [
+  "from-blue-500 to-blue-600",
+  "from-violet-500 to-violet-600",
+  "from-emerald-500 to-emerald-600",
+  "from-amber-500 to-amber-600",
+  "from-rose-500 to-rose-600",
+  "from-cyan-500 to-cyan-600",
+];
+
+function MultiCompanyDashboard({ onEnter }: { onEnter: (companyId: string) => void }) {
+  const { companiesList, profile, switchCompany } = useAuth();
+  const [entering, setEntering] = useState<string | null>(null);
+
+  async function handleEnter(companyId: string) {
+    setEntering(companyId);
+    await switchCompany(companyId);
+    onEnter(companyId);
+    setEntering(null);
+  }
+
+  return (
+    <div className="min-h-[70vh] flex flex-col items-center justify-center py-12 px-4">
+      <div className="text-center mb-10">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-cta shadow-btn flex items-center justify-center mx-auto mb-4">
+          <Building2 className="w-7 h-7 text-white" />
+        </div>
+        <h2 className="text-2xl font-bold mb-1">Tus empresas</h2>
+        <p className="text-muted-foreground text-sm">
+          Selecciona una empresa para acceder a su panel de trabajo
+        </p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-3xl">
+        {companiesList.map((company, i) => {
+          const isActive = company.id === profile?.company_id;
+          const colorClass = MC_COLORS[i % MC_COLORS.length];
+          const initial = company.name.trim()[0]?.toUpperCase() ?? "?";
+          return (
+            <div
+              key={company.id}
+              className={`relative rounded-2xl border-2 p-5 bg-background shadow-card transition-all hover:shadow-md ${
+                isActive ? "border-primary ring-2 ring-primary/20" : "border-border/60 hover:border-primary/40"
+              }`}
+            >
+              {isActive && (
+                <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                  Activo
+                </span>
+              )}
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white text-xl font-bold mb-3 shadow-sm`}>
+                {initial}
+              </div>
+              <h3 className="font-bold text-base leading-tight mb-1 pr-14 truncate">{company.name}</h3>
+              <p className="text-xs text-muted-foreground capitalize mb-4">{company.role}</p>
+              <Button
+                className="w-full gap-1.5"
+                variant={isActive ? "default" : "outline"}
+                disabled={entering === company.id}
+                onClick={() => handleEnter(company.id)}
+              >
+                {entering === company.id ? "Entrando..." : "Entrar"}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function CommissionTool() {
   const s = useStore();
   const t = useT();
@@ -125,6 +195,13 @@ export default function CommissionTool() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  // Multi-company picker: shown when admin/accountant has access to >1 company
+  const [pickerMode, setPickerMode] = useState(false);
+  useEffect(() => {
+    if (companiesList.length > 1 && !pickerMode) setPickerMode(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companiesList.length]);
+  const showPicker = pickerMode && companiesList.length > 1 && !isRep;
 
   // Load pending user count and subscribe to realtime changes (admins only)
   useEffect(() => {
@@ -218,6 +295,18 @@ export default function CommissionTool() {
               <Languages className="w-3.5 h-3.5" />
               <span>{s.language === "es" ? "ES" : "EN"}</span>
             </button>
+
+            {/* Multi-company picker shortcut */}
+            {companiesList.length > 1 && !isRep && !showPicker && (
+              <button
+                onClick={() => setPickerMode(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-50 border border-sky-200 hover:bg-sky-100 transition-all text-xs font-bold text-accent"
+                title="Cambiar empresa"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Empresas</span>
+              </button>
+            )}
 
             {/* Admin button – icon on mobile */}
             {isAdmin && (
@@ -325,7 +414,9 @@ export default function CommissionTool() {
       </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
-        {isRep && !effectiveAgentId ? (
+        {showPicker ? (
+          <MultiCompanyDashboard onEnter={() => setPickerMode(false)} />
+        ) : isRep && !effectiveAgentId ? (
           <Card className="p-8 text-center">
             <UserRound className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
             <h2 className="text-lg font-semibold mb-1">{t("no_rep_title")}</h2>
@@ -530,7 +621,7 @@ function Field({ label, value, onChange, type = "text" }: { label: string; value
 
 /* ---------- Agents ---------- */
 function AgentsPanel() {
-  const { agents, addAgent, updateAgent, removeAgent } = useStore();
+  const { agents, addAgent, updateAgent, removeAgent, positions } = useStore();
   const t = useT();
   const [form, setForm] = useState({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
 
@@ -580,11 +671,10 @@ function AgentsPanel() {
           <Select value={form.level || "none"} onValueChange={(v) => setForm({ ...form, level: v === "none" ? "" : v })}>
             <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="Junior Rep">Junior Rep</SelectItem>
-              <SelectItem value="Sales Rep">Sales Rep</SelectItem>
-              <SelectItem value="Senior Rep">Senior Rep</SelectItem>
-              <SelectItem value="Manager">Manager</SelectItem>
-              <SelectItem value="Director">Director</SelectItem>
+              <SelectItem value="none">—</SelectItem>
+              {positions.filter((p) => p.active).map((p) => (
+                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -633,11 +723,9 @@ function AgentsPanel() {
                       <SelectTrigger className="h-8 w-32"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">—</SelectItem>
-                        <SelectItem value="Junior Rep">Junior Rep</SelectItem>
-                        <SelectItem value="Sales Rep">Sales Rep</SelectItem>
-                        <SelectItem value="Senior Rep">Senior Rep</SelectItem>
-                        <SelectItem value="Manager">Manager</SelectItem>
-                        <SelectItem value="Director">Director</SelectItem>
+                        {positions.filter((p) => p.active).map((p) => (
+                          <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </td>
@@ -1264,7 +1352,6 @@ function PlanPanel() {
     "Regional Manager", "Dealer", "Owner",
   ];
 
-  /* ----- sample-sale simulator ----- */
   const [sim, setSim] = useState({
     positionId: "",
     salesAmount: 10000,
@@ -1282,197 +1369,125 @@ function PlanPanel() {
     const profit = Math.max(0, grand - sim.productCost);
     const deductions = sim.salesAmount * (simPosition.specialDeductionPercent || 0);
     const blockedByApproval = sim.approvalPercent < simPosition.minApprovalPercent;
-    const blockedByFinanceCo =
-      simPosition.financeCompanyId && simPosition.financeCompanyId !== sim.financeCompanyId;
+    const blockedByFinanceCo = simPosition.financeCompanyId && simPosition.financeCompanyId !== sim.financeCompanyId;
     const blocked = blockedByApproval || blockedByFinanceCo || !simPosition.active;
     const commission = blocked ? 0 : profit * simPosition.commissionPercent + simPosition.fixedPayout - deductions;
     return { approval, financeFee, grand, profit, deductions, commission, blocked, blockedByApproval, blockedByFinanceCo };
   })();
 
   return (
-    <div className="space-y-6">
-      <SectionCard
-        title={t("sect_positions")}
-        desc={t("sect_positions_desc")}
-        action={
-          <div className="flex gap-2 flex-wrap">
-            <Select onValueChange={(v) => addBlankPosition(v)}>
-              <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder={t("btn_add_preset")} /></SelectTrigger>
-              <SelectContent>
-                {presetNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button variant="outline" size="sm" onClick={() => addBlankPosition()}>
-              <Plus className="w-4 h-4 mr-2" />{t("btn_custom")}
-            </Button>
-          </div>
-        }
-      >
-        {positions.length === 0 ? (
-          <Empty msg={t("empty_no_positions")} />
-        ) : (
-          <div className="space-y-4">
-            {positions.map((p) => (
-              <div key={p.id} className="border border-border/60 rounded-lg p-4 space-y-3 bg-card/40">
-                <div className="flex items-start justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Input
-                      className="font-semibold w-56"
-                      value={p.name}
-                      onChange={(e) => updatePosition(p.id, { name: e.target.value })}
-                    />
-                    <label className="flex items-center gap-2 text-xs">
-                      <Switch checked={p.active} onCheckedChange={(v) => updatePosition(p.id, { active: v })} />
-                      {p.active ? t("lbl_active") : t("lbl_inactive")}
-                    </label>
-                    <label className="flex items-center gap-2 text-xs">
-                      <Switch checked={p.overrideEligible} onCheckedChange={(v) => updatePosition(p.id, { overrideEligible: v })} />
-                      {t("lbl_override_eligible")}
-                    </label>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removePosition(p.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+    <Tabs defaultValue="positions" className="space-y-4">
+      <TabsList className="bg-muted/50 border border-border rounded-xl p-1 flex flex-wrap gap-1 h-auto">
+        <TabsTrigger value="positions" className="rounded-lg text-sm">Positions</TabsTrigger>
+        <TabsTrigger value="commission-rules" className="rounded-lg text-sm">Commission Rules</TabsTrigger>
+        <TabsTrigger value="override-rules" className="rounded-lg text-sm">Override Rules</TabsTrigger>
+        <TabsTrigger value="split-rules" className="rounded-lg text-sm">Split Rules</TabsTrigger>
+        <TabsTrigger value="simulator" className="rounded-lg text-sm">Payout Simulator</TabsTrigger>
+      </TabsList>
 
-                <div className="grid md:grid-cols-4 gap-3">
-                  <div><Label className="text-xs">{t("lbl_commission_pct")}</Label>
-                    <Input type="number" step="0.1" value={(p.commissionPercent * 100).toFixed(2)}
-                      onChange={(e) => updatePosition(p.id, { commissionPercent: Number(e.target.value) / 100 })} />
-                  </div>
-                  <div><Label className="text-xs">{t("lbl_fixed_payout")} ({company.currency})</Label>
-                    <Input type="number" value={p.fixedPayout}
-                      onChange={(e) => updatePosition(p.id, { fixedPayout: Number(e.target.value) })} />
-                  </div>
-                  <div><Label className="text-xs">{t("lbl_diff_override")}</Label>
-                    <Input type="number" step="0.1" value={(p.differentialOverridePercent * 100).toFixed(2)}
-                      onChange={(e) => updatePosition(p.id, { differentialOverridePercent: Number(e.target.value) / 100 })} />
-                  </div>
-                  <div><Label className="text-xs">{t("lbl_split_default")}</Label>
-                    <Input type="number" step="1" value={(p.splitDefaultPercent * 100).toFixed(0)}
-                      onChange={(e) => updatePosition(p.id, { splitDefaultPercent: Number(e.target.value) / 100 })} />
-                  </div>
-
-                  <div><Label className="text-xs">{t("lbl_effective_from")}</Label>
-                    <Input type="date" value={p.effectiveFrom}
-                      onChange={(e) => updatePosition(p.id, { effectiveFrom: e.target.value })} />
-                  </div>
-                  <div><Label className="text-xs">{t("lbl_effective_to")}</Label>
-                    <Input type="date" value={p.effectiveTo}
-                      onChange={(e) => updatePosition(p.id, { effectiveTo: e.target.value })} />
-                  </div>
-                  <div><Label className="text-xs">{t("lbl_min_approval")}</Label>
-                    <Input type="number" step="1" value={(p.minApprovalPercent * 100).toFixed(0)}
-                      onChange={(e) => updatePosition(p.id, { minApprovalPercent: Number(e.target.value) / 100 })} />
-                  </div>
-                  <div><Label className="text-xs">{t("lbl_special_deduction_pct")}</Label>
-                    <Input type="number" step="0.1" value={(p.specialDeductionPercent * 100).toFixed(2)}
-                      onChange={(e) => updatePosition(p.id, { specialDeductionPercent: Number(e.target.value) / 100 })} />
-                  </div>
-
-                  <div className="md:col-span-2"><Label className="text-xs">{t("lbl_finance_rule")}</Label>
-                    <Select
-                      value={p.financeCompanyId ?? "__all__"}
-                      onValueChange={(v) => updatePosition(p.id, { financeCompanyId: v === "__all__" ? null : v })}
-                    >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__all__">{t("lbl_all_finance")}</SelectItem>
-                        {financeCompanies.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2"><Label className="text-xs">{t("lbl_product_rule")}</Label>
-                    <Input value={p.productRule}
-                      placeholder="e.g. softener systems only"
-                      onChange={(e) => updatePosition(p.id, { productRule: e.target.value })} />
-                  </div>
-
-                  <div className="md:col-span-4"><Label className="text-xs">{t("lbl_notes")}</Label>
-                    <Textarea rows={2} value={p.notes}
-                      onChange={(e) => updatePosition(p.id, { notes: e.target.value })} />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard
-        title={t("sect_simulator")}
-        desc={t("sect_simulator_desc")}
-      >
-        {positions.length === 0 ? (
-          <Empty msg={t("empty_add_position")} />
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <div><Label className="text-xs">Position</Label>
-                <Select value={sim.positionId} onValueChange={(v) => setSim({ ...sim, positionId: v })}>
-                  <SelectTrigger><SelectValue placeholder={t("lbl_select_position")} /></SelectTrigger>
-                  <SelectContent>
-                    {positions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><Label className="text-xs">{t("lbl_sales_amount")}</Label>
-                  <Input type="number" value={sim.salesAmount}
-                    onChange={(e) => setSim({ ...sim, salesAmount: Number(e.target.value) })} />
-                </div>
-                <div><Label className="text-xs">{t("lbl_product_cost")}</Label>
-                  <Input type="number" value={sim.productCost}
-                    onChange={(e) => setSim({ ...sim, productCost: Number(e.target.value) })} />
-                </div>
-                <div><Label className="text-xs">{t("lbl_approval_pct")}</Label>
-                  <Input type="number" step="1" value={(sim.approvalPercent * 100).toFixed(0)}
-                    onChange={(e) => setSim({ ...sim, approvalPercent: Number(e.target.value) / 100 })} />
-                </div>
-                <div><Label className="text-xs">{t("lbl_finance_co")}</Label>
-                  <Select value={sim.financeCompanyId || "__none__"}
-                    onValueChange={(v) => setSim({ ...sim, financeCompanyId: v === "__none__" ? "" : v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">{t("lbl_none")}</SelectItem>
-                      {financeCompanies.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+      {/* ── Positions ── */}
+      <TabsContent value="positions" className="mt-0">
+        <SectionCard
+          title={t("sect_positions")}
+          desc={t("sect_positions_desc")}
+          action={
+            <div className="flex gap-2 flex-wrap">
+              <Select onValueChange={(v) => addBlankPosition(v)}>
+                <SelectTrigger className="h-8 w-[180px]"><SelectValue placeholder={t("btn_add_preset")} /></SelectTrigger>
+                <SelectContent>
+                  {presetNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={() => addBlankPosition()}>
+                <Plus className="w-4 h-4 mr-2" />{t("btn_custom")}
+              </Button>
             </div>
-
-            <div className="rounded-lg bg-muted/40 p-4 text-sm space-y-1.5">
-              {!simResult ? (
-                <p className="text-muted-foreground">{t("sim_no_position")}</p>
-              ) : (
-                <>
-                  <Row k={t("sim_approval")} v={fmtMoney(simResult.approval, company.currency)} />
-                  <Row k={t("sim_finance_fees")} v={fmtMoney(simResult.financeFee, company.currency)} />
-                  <Row k={t("sim_grand_total")} v={fmtMoney(simResult.grand, company.currency)} />
-                  <Row k={t("sim_profit")} v={fmtMoney(simResult.profit, company.currency)} />
-                  <Row k={t("sim_deductions")} v={fmtMoney(simResult.deductions, company.currency)} />
-                  <div className="border-t border-border/60 my-2" />
-                  <Row k={t("sim_commission")} v={fmtMoney(simResult.commission, company.currency)} bold />
-                  {simResult.blocked && (
-                    <p className="text-xs text-destructive flex items-start gap-1 mt-2">
-                      <AlertCircle className="w-3.5 h-3.5 mt-0.5" />
-                      {!simPosition?.active && t("sim_pos_inactive")}
-                      {simResult.blockedByApproval && t("sim_below_min")}
-                      {simResult.blockedByFinanceCo && t("sim_wrong_finance")}
-                    </p>
-                  )}
-                  <p className="text-[11px] text-muted-foreground italic mt-2">
-                    {t("sim_estimate")}
-                  </p>
-                </>
-              )}
+          }
+        >
+          {positions.length === 0 ? (
+            <Empty msg={t("empty_no_positions")} />
+          ) : (
+            <div className="space-y-4">
+              {positions.map((p) => (
+                <div key={p.id} className="border border-border/60 rounded-lg p-4 space-y-3 bg-card/40">
+                  <div className="flex items-start justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Input className="font-semibold w-56" value={p.name}
+                        onChange={(e) => updatePosition(p.id, { name: e.target.value })} />
+                      <label className="flex items-center gap-2 text-xs">
+                        <Switch checked={p.active} onCheckedChange={(v) => updatePosition(p.id, { active: v })} />
+                        {p.active ? t("lbl_active") : t("lbl_inactive")}
+                      </label>
+                      <label className="flex items-center gap-2 text-xs">
+                        <Switch checked={p.overrideEligible} onCheckedChange={(v) => updatePosition(p.id, { overrideEligible: v })} />
+                        {t("lbl_override_eligible")}
+                      </label>
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => removePosition(p.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="grid md:grid-cols-4 gap-3">
+                    <div><Label className="text-xs">{t("lbl_commission_pct")}</Label>
+                      <Input type="number" step="0.1" value={(p.commissionPercent * 100).toFixed(2)}
+                        onChange={(e) => updatePosition(p.id, { commissionPercent: Number(e.target.value) / 100 })} />
+                    </div>
+                    <div><Label className="text-xs">{t("lbl_fixed_payout")} ({company.currency})</Label>
+                      <Input type="number" value={p.fixedPayout}
+                        onChange={(e) => updatePosition(p.id, { fixedPayout: Number(e.target.value) })} />
+                    </div>
+                    <div><Label className="text-xs">{t("lbl_diff_override")}</Label>
+                      <Input type="number" step="0.1" value={(p.differentialOverridePercent * 100).toFixed(2)}
+                        onChange={(e) => updatePosition(p.id, { differentialOverridePercent: Number(e.target.value) / 100 })} />
+                    </div>
+                    <div><Label className="text-xs">{t("lbl_split_default")}</Label>
+                      <Input type="number" step="1" value={(p.splitDefaultPercent * 100).toFixed(0)}
+                        onChange={(e) => updatePosition(p.id, { splitDefaultPercent: Number(e.target.value) / 100 })} />
+                    </div>
+                    <div><Label className="text-xs">{t("lbl_effective_from")}</Label>
+                      <Input type="date" value={p.effectiveFrom}
+                        onChange={(e) => updatePosition(p.id, { effectiveFrom: e.target.value })} />
+                    </div>
+                    <div><Label className="text-xs">{t("lbl_effective_to")}</Label>
+                      <Input type="date" value={p.effectiveTo}
+                        onChange={(e) => updatePosition(p.id, { effectiveTo: e.target.value })} />
+                    </div>
+                    <div><Label className="text-xs">{t("lbl_min_approval")}</Label>
+                      <Input type="number" step="1" value={(p.minApprovalPercent * 100).toFixed(0)}
+                        onChange={(e) => updatePosition(p.id, { minApprovalPercent: Number(e.target.value) / 100 })} />
+                    </div>
+                    <div><Label className="text-xs">{t("lbl_special_deduction_pct")}</Label>
+                      <Input type="number" step="0.1" value={(p.specialDeductionPercent * 100).toFixed(2)}
+                        onChange={(e) => updatePosition(p.id, { specialDeductionPercent: Number(e.target.value) / 100 })} />
+                    </div>
+                    <div className="md:col-span-2"><Label className="text-xs">{t("lbl_finance_rule")}</Label>
+                      <Select value={p.financeCompanyId ?? "__all__"}
+                        onValueChange={(v) => updatePosition(p.id, { financeCompanyId: v === "__all__" ? null : v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">{t("lbl_all_finance")}</SelectItem>
+                          {financeCompanies.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2"><Label className="text-xs">{t("lbl_product_rule")}</Label>
+                      <Input value={p.productRule} placeholder="e.g. softener systems only"
+                        onChange={(e) => updatePosition(p.id, { productRule: e.target.value })} />
+                    </div>
+                    <div className="md:col-span-4"><Label className="text-xs">{t("lbl_notes")}</Label>
+                      <Textarea rows={2} value={p.notes}
+                        onChange={(e) => updatePosition(p.id, { notes: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        )}
-      </SectionCard>
+          )}
+        </SectionCard>
+      </TabsContent>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      {/* ── Commission Rules (Tiers) ── */}
+      <TabsContent value="commission-rules" className="mt-0">
         <SectionCard
           title={t("sect_tiers")}
           desc={t("sect_tiers_desc")}
@@ -1500,7 +1515,10 @@ function PlanPanel() {
           </div>
           <ValidationList errs={tierErrs} />
         </SectionCard>
+      </TabsContent>
 
+      {/* ── Override Rules ── */}
+      <TabsContent value="override-rules" className="mt-0">
         <SectionCard
           title={t("sect_overrides")}
           desc={t("sect_overrides_desc")}
@@ -1528,8 +1546,83 @@ function PlanPanel() {
           </div>
           <ValidationList errs={ovErrs} />
         </SectionCard>
-      </div>
-    </div>
+      </TabsContent>
+
+      {/* ── Split Rules ── */}
+      <TabsContent value="split-rules" className="mt-0">
+        <SplitsPanel />
+      </TabsContent>
+
+      {/* ── Payout Simulator ── */}
+      <TabsContent value="simulator" className="mt-0">
+        <SectionCard title="Payout Simulator" desc={t("sect_simulator_desc")}>
+          {positions.length === 0 ? (
+            <Empty msg={t("empty_add_position")} />
+          ) : (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <div><Label className="text-xs">Position</Label>
+                  <Select value={sim.positionId} onValueChange={(v) => setSim({ ...sim, positionId: v })}>
+                    <SelectTrigger><SelectValue placeholder={t("lbl_select_position")} /></SelectTrigger>
+                    <SelectContent>
+                      {positions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label className="text-xs">{t("lbl_sales_amount")}</Label>
+                    <Input type="number" value={sim.salesAmount}
+                      onChange={(e) => setSim({ ...sim, salesAmount: Number(e.target.value) })} />
+                  </div>
+                  <div><Label className="text-xs">{t("lbl_product_cost")}</Label>
+                    <Input type="number" value={sim.productCost}
+                      onChange={(e) => setSim({ ...sim, productCost: Number(e.target.value) })} />
+                  </div>
+                  <div><Label className="text-xs">{t("lbl_approval_pct")}</Label>
+                    <Input type="number" step="1" value={(sim.approvalPercent * 100).toFixed(0)}
+                      onChange={(e) => setSim({ ...sim, approvalPercent: Number(e.target.value) / 100 })} />
+                  </div>
+                  <div><Label className="text-xs">{t("lbl_finance_co")}</Label>
+                    <Select value={sim.financeCompanyId || "__none__"}
+                      onValueChange={(v) => setSim({ ...sim, financeCompanyId: v === "__none__" ? "" : v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">{t("lbl_none")}</SelectItem>
+                        {financeCompanies.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg bg-muted/40 p-4 text-sm space-y-1.5">
+                {!simResult ? (
+                  <p className="text-muted-foreground">{t("sim_no_position")}</p>
+                ) : (
+                  <>
+                    <Row k={t("sim_approval")} v={fmtMoney(simResult.approval, company.currency)} />
+                    <Row k={t("sim_finance_fees")} v={fmtMoney(simResult.financeFee, company.currency)} />
+                    <Row k={t("sim_grand_total")} v={fmtMoney(simResult.grand, company.currency)} />
+                    <Row k={t("sim_profit")} v={fmtMoney(simResult.profit, company.currency)} />
+                    <Row k={t("sim_deductions")} v={fmtMoney(simResult.deductions, company.currency)} />
+                    <div className="border-t border-border/60 my-2" />
+                    <Row k={t("sim_commission")} v={fmtMoney(simResult.commission, company.currency)} bold />
+                    {simResult.blocked && (
+                      <p className="text-xs text-destructive flex items-start gap-1 mt-2">
+                        <AlertCircle className="w-3.5 h-3.5 mt-0.5" />
+                        {!simPosition?.active && t("sim_pos_inactive")}
+                        {simResult.blockedByApproval && t("sim_below_min")}
+                        {simResult.blockedByFinanceCo && t("sim_wrong_finance")}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground italic mt-2">{t("sim_estimate")}</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </SectionCard>
+      </TabsContent>
+    </Tabs>
   );
 }
 
@@ -1848,7 +1941,7 @@ function BrandingPanel() {
 
   return (
     <SectionCard
-      title="Company Branding & Invoice Templates"
+      title="Brand Studio"
       desc="Per-company branding. PDFs use these settings; old PDFs keep the branding snapshot from when they were generated."
     >
       <div className="grid lg:grid-cols-2 gap-6">
@@ -1942,7 +2035,7 @@ function TemplateGallery() {
               {active && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground">Active</span>}
             </div>
             <div className="origin-top-left scale-[0.55] w-[182%] h-[260px] overflow-hidden pointer-events-none">
-              <InvoicePreview templateOverride={t.id} />
+              <InvoicePreview templateOverride={t.id} forGallery={true} />
             </div>
             <div className="text-[10px] text-muted-foreground mt-1.5 line-clamp-2">{t.desc}</div>
           </button>
@@ -1952,11 +2045,11 @@ function TemplateGallery() {
   );
 }
 
-function InvoicePreview({ templateOverride }: { templateOverride?: import("@/lib/commission-store").InvoiceTemplateId } = {}) {
+function InvoicePreview({ templateOverride, forGallery = false }: { templateOverride?: import("@/lib/commission-store").InvoiceTemplateId; forGallery?: boolean } = {}) {
   const { company } = useStore();
   const tpl = templateOverride ?? company.invoiceTemplate;
-  const primary = company.brandColor;
-  const accent = company.brandColorSecondary;
+  const primary = forGallery ? "#0B1F3A" : (company.brandColor || "#0B1F3A");
+  const accent = forGallery ? "#2563EB" : (company.brandColorSecondary || "#2563EB");
 
   const headerStyle: React.CSSProperties =
     tpl === "minimal"

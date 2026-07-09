@@ -21,18 +21,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Wallet, FileDown, AlertCircle, Sparkles, MessageSquare } from "lucide-react";
+import { Plus, Trash2, Wallet, FileDown, Sparkles } from "lucide-react";
 import { useStore, type Invoice } from "@/lib/commission-store";
 import {
   calcInvoice,
   calcPayouts,
   fmtMoney,
-  type AgentPayout,
 } from "@/lib/commission-calc";
 import {
   buildAllWallets,
-  buildWallet,
-  explainInvoice,
   type AgentWallet,
   type LedgerEntry,
 } from "@/lib/ledger";
@@ -415,34 +412,115 @@ export function ExplainDialog({
   if (!inv) return null;
   const c = calcInvoice(inv, s.financeCompanies);
   const ag = s.agents.find((a) => a.id === inv.agentId) || null;
-  const payouts = calcPayouts(
-    s.agents,
-    s.invoices,
-    s.financeCompanies,
-    s.personalTiers,
-    s.overrides
-  );
+  const payouts = calcPayouts(s.agents, s.invoices, s.financeCompanies, s.personalTiers, s.overrides);
   const payout = payouts.find((p) => p.agent.id === inv.agentId) || null;
-  const lines = explainInvoice(inv, c, ag, payout, s.company, lang);
   const isEs = lang === "es";
+  const cur = s.company.currency;
+  const m = (n: number) => fmtMoney(n, cur);
+  const pct = (n: number) => `${(n * 100).toFixed(0)}%`;
+
+  const repName = ag?.name || (isEs ? "Vendedor" : "Salesperson");
+  const dealerFeeVal = inv.dealerFee != null ? inv.dealerFee : c.financeCo?.dealerFee ?? 0;
+  const ccpfVal = inv.saleType === "credit_card" ? inv.salesAmount * (inv.ccpfPercent ?? 0.035) : 0;
+  const adminFeeVal = inv.salesAmount * (inv.adminFeePercent || 0);
+  const effectiveRate = payout ? (inv.commissionPercentOverride ?? payout.personalRate) : null;
+  const reservePct = inv.taxReservePercent ?? ag?.taxReservePercent ?? 0;
+  const reserveAmt = payout ? payout.taxReserveSuggested : 0;
+  const finalAmt = payout ? payout.finalPayable : null;
+
+  const bullets: string[] = [];
+  if (isEs) {
+    bullets.push(`Vendiste a ${inv.customerName || "cliente"} por ${m(inv.salesAmount)}.`);
+    if (inv.productCost) bullets.push(`El costo del producto fue ${m(inv.productCost)}.`);
+    bullets.push(`${c.financeCo?.name || "La financiera"} aprobó el ${pct(inv.approvalPercent)} de la venta → ${m(c.approvalAmount)}.`);
+    if (inv.discount) bullets.push(`Se aplicó un descuento de ${m(inv.discount)}.`);
+    if (c.financeCo && inv.saleType === "finance") bullets.push(`Comisión de ${c.financeCo.name}: ${m(c.financeCo.defaultFee * inv.salesAmount)} + admin fee ${m(c.financeCo.adminFee)}.`);
+    if (dealerFeeVal > 0) bullets.push(`Dealer Fee del banco financiero: ${m(dealerFeeVal)}.`);
+    if (ccpfVal > 0) bullets.push(`Cargo por procesamiento de tarjeta (CCPF al ${pct(inv.ccpfPercent ?? 0.035)}): ${m(ccpfVal)}.`);
+    if (adminFeeVal > 0) bullets.push(`Admin Fee al ${pct(inv.adminFeePercent || 0)}: ${m(adminFeeVal)}.`);
+    if (inv.charges.length) inv.charges.forEach((ch) => bullets.push(`Cargo adicional — ${ch.label || "cargo"}: ${m(ch.amount)}.`));
+    if (inv.credits.length) inv.credits.forEach((cr) => bullets.push(`Crédito agregado — ${cr.label || "crédito"}: ${m(cr.amount)}.`));
+    bullets.push(`El profit final fue ${m(c.profit)}.`);
+  } else {
+    bullets.push(`You sold to ${inv.customerName || "customer"} for ${m(inv.salesAmount)}.`);
+    if (inv.productCost) bullets.push(`Product cost was ${m(inv.productCost)}.`);
+    bullets.push(`${c.financeCo?.name || "Lender"} approved ${pct(inv.approvalPercent)} of the sale → ${m(c.approvalAmount)}.`);
+    if (inv.discount) bullets.push(`A discount of ${m(inv.discount)} was applied.`);
+    if (c.financeCo && inv.saleType === "finance") bullets.push(`${c.financeCo.name} fee: ${m(c.financeCo.defaultFee * inv.salesAmount)} + admin fee ${m(c.financeCo.adminFee)}.`);
+    if (dealerFeeVal > 0) bullets.push(`Finance Bank Dealer Fee: ${m(dealerFeeVal)}.`);
+    if (ccpfVal > 0) bullets.push(`Credit Card Processing Fee (${pct(inv.ccpfPercent ?? 0.035)}): ${m(ccpfVal)}.`);
+    if (adminFeeVal > 0) bullets.push(`Admin Fee at ${pct(inv.adminFeePercent || 0)}: ${m(adminFeeVal)}.`);
+    if (inv.charges.length) inv.charges.forEach((ch) => bullets.push(`Extra charge — ${ch.label || "charge"}: ${m(ch.amount)}.`));
+    if (inv.credits.length) inv.credits.forEach((cr) => bullets.push(`Credit added — ${cr.label || "credit"}: ${m(cr.amount)}.`));
+    bullets.push(`Final profit was ${m(c.profit)}.`);
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>
-            {isEs ? "Explicación de la comisión" : "Explain This Commission"} — {inv.number}
+          <DialogTitle className="text-base">
+            {isEs ? "Resumen de comisión" : "Commission Summary"} · {inv.number}
           </DialogTitle>
-          <DialogDescription>
-            {isEs
-              ? "Desglose en lenguaje simple de cómo se calculó esta comisión."
-              : "Plain-language breakdown of how this commission was calculated."}
-          </DialogDescription>
         </DialogHeader>
-        <ol className="space-y-2 text-sm list-decimal pl-5 max-h-[60vh] overflow-y-auto">
-          {lines.map((l, i) => (
-            <li key={i}>{l}</li>
-          ))}
-        </ol>
+
+        <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+          {/* Greeting */}
+          <p className="text-sm font-medium">
+            {isEs
+              ? `Hola ${repName}, aquí está el resumen de cómo calculamos tu comisión.`
+              : `Hi ${repName}, here's how we calculated your commission.`}
+          </p>
+
+          {/* Bullet breakdown */}
+          <ul className="space-y-1.5 text-sm">
+            {bullets.map((b, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="text-accent mt-0.5 shrink-0">•</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Commission summary box */}
+          {payout && effectiveRate !== null && (
+            <div className="rounded-xl bg-muted/50 border border-border p-4 space-y-2 text-sm">
+              <p>
+                {isEs
+                  ? `Como tu posición es ${inv.commissionLevel || ag?.level || "—"} (${pct(effectiveRate)}), tu comisión personal fue:`
+                  : `As your position is ${inv.commissionLevel || ag?.level || "—"} (${pct(effectiveRate)}), your personal commission was:`}
+                {" "}<span className="font-bold text-accent">{m(payout.personalCommission)}</span>
+              </p>
+              {payout.overrideTotal > 0 && (
+                <p>
+                  {isEs ? "Override de tu downline:" : "Downline override:"}{" "}
+                  <span className="font-semibold">{m(payout.overrideTotal)}</span>
+                </p>
+              )}
+              {inv.advanceApplied ? (
+                <p>
+                  {isEs ? "Se descontó un advance de:" : "Advance deducted:"}{" "}
+                  <span className="font-semibold text-destructive">− {m(inv.advanceApplied)}</span>
+                </p>
+              ) : null}
+              {reservePct > 0 && (
+                <p>
+                  {isEs
+                    ? `Como tienes configurada una reserva del ${pct(reservePct)}, recomendamos apartar:`
+                    : `With a ${pct(reservePct)} tax reserve configured, we suggest setting aside:`}
+                  {" "}<span className="font-semibold">{m(reserveAmt)}</span>
+                </p>
+              )}
+              <div className="border-t border-border pt-2">
+                <p className="font-semibold">
+                  {isEs ? "Tu pago estimado sería:" : "Your estimated payout:"}{" "}
+                  <span className="text-accent">{m(finalAmt ?? 0)}</span>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             {isEs ? "Cerrar" : "Close"}
@@ -1049,6 +1127,8 @@ export function SimulatorPanel() {
     taxReservePercent: 0.22,
     extraCharges: 0,
   });
+  const [saveDialog, setSaveDialog] = useState(false);
+  const [saveForm, setSaveForm] = useState({ agentId: "", customerName: "" });
 
   const fc = s.financeCompanies.find((f) => f.id === form.financeCompanyId) || null;
   const approval = form.salesAmount * form.approvalPercent;
@@ -1073,146 +1153,204 @@ export function SimulatorPanel() {
   const taxReserve = Math.max(0, commission) * form.taxReservePercent;
   const net = commission - taxReserve;
 
+  const handleSaveAsInvoice = () => {
+    s.addInvoice({
+      date: new Date().toISOString().slice(0, 10),
+      status: "draft",
+      agentId: saveForm.agentId || "",
+      financeCompanyId: form.financeCompanyId === "none" ? null : form.financeCompanyId,
+      customerName: saveForm.customerName || "—",
+      customerNotes: "",
+      salesAmount: form.salesAmount,
+      productCost: form.productCost,
+      approvalPercent: form.approvalPercent,
+      discount: 0,
+      charges: form.extraCharges > 0 ? [{ label: "Extra charges", amount: form.extraCharges }] : [],
+      credits: form.credits > 0 ? [{ label: "Credits", amount: form.credits }] : [],
+      advanceApplied: 0,
+      specialDeductions: form.deductions,
+      taxReservePercent: form.taxReservePercent,
+      paid: false,
+      saleType: form.financeCompanyId !== "none" ? "finance" : undefined,
+    });
+    setSaveDialog(false);
+    setSaveForm({ agentId: "", customerName: "" });
+    toast.success("Draft invoice created — complete it in the Invoices tab.");
+  };
+
   return (
-    <Section
-      title="Commission Simulator"
-      desc="Estimate your commission before closing a sale. No data is saved."
-    >
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Card className="p-5 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label>Sales amount</Label>
-              <Input
-                type="number"
-                value={form.salesAmount}
-                onChange={(e) => setForm({ ...form, salesAmount: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <Label>Product cost</Label>
-              <Input
-                type="number"
-                value={form.productCost}
-                onChange={(e) => setForm({ ...form, productCost: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <Label>Finance company</Label>
-              <Select
-                value={form.financeCompanyId}
-                onValueChange={(v) => setForm({ ...form, financeCompanyId: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— None —</SelectItem>
-                  {s.financeCompanies
-                    .filter((f) => f.active)
-                    .map((f) => (
-                      <SelectItem key={f.id} value={f.id}>
-                        {f.name}
-                      </SelectItem>
+    <>
+      <Section
+        title="Payout Simulator"
+        desc="Estimate your commission before closing a sale. No data is saved until you convert to invoice."
+        action={
+          <Button
+            size="sm"
+            className="bg-gradient-primary text-white hover:opacity-90 gap-1.5"
+            onClick={() => setSaveDialog(true)}
+          >
+            <Plus className="w-4 h-4" /> Save as Invoice
+          </Button>
+        }
+      >
+        <div className="grid lg:grid-cols-2 gap-6">
+          <Card className="p-5 space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>Sales amount</Label>
+                <Input
+                  type="number"
+                  value={form.salesAmount}
+                  onChange={(e) => setForm({ ...form, salesAmount: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Product cost</Label>
+                <Input
+                  type="number"
+                  value={form.productCost}
+                  onChange={(e) => setForm({ ...form, productCost: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Finance company</Label>
+                <Select
+                  value={form.financeCompanyId}
+                  onValueChange={(v) => setForm({ ...form, financeCompanyId: v })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {s.financeCompanies.filter((f) => f.active).map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
                     ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Approval %</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={(form.approvalPercent * 100).toFixed(2)}
-                onChange={(e) =>
-                  setForm({ ...form, approvalPercent: Number(e.target.value) / 100 })
-                }
-              />
-            </div>
-            <div>
-              <Label>Commission level</Label>
-              <Select
-                value={String(form.level)}
-                onValueChange={(v) => setForm({ ...form, level: Number(v) })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Personal (own sale)</SelectItem>
-                  {s.overrides
-                    .slice()
-                    .sort((a, b) => a.level - b.level)
-                    .map((o) => (
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Approval %</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={(form.approvalPercent * 100).toFixed(2)}
+                  onChange={(e) => setForm({ ...form, approvalPercent: Number(e.target.value) / 100 })}
+                />
+              </div>
+              <div>
+                <Label>Commission level</Label>
+                <Select
+                  value={String(form.level)}
+                  onValueChange={(v) => setForm({ ...form, level: Number(v) })}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Personal (own sale)</SelectItem>
+                    {s.overrides.slice().sort((a, b) => a.level - b.level).map((o) => (
                       <SelectItem key={o.level} value={String(o.level)}>
                         L{o.level} downline override
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Extra charges</Label>
+                <Input
+                  type="number"
+                  value={form.extraCharges}
+                  onChange={(e) => setForm({ ...form, extraCharges: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Deductions</Label>
+                <Input
+                  type="number"
+                  value={form.deductions}
+                  onChange={(e) => setForm({ ...form, deductions: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Credits</Label>
+                <Input
+                  type="number"
+                  value={form.credits}
+                  onChange={(e) => setForm({ ...form, credits: Number(e.target.value) })}
+                />
+              </div>
+              <div>
+                <Label>Tax reserve %</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={(form.taxReservePercent * 100).toFixed(2)}
+                  onChange={(e) => setForm({ ...form, taxReservePercent: Number(e.target.value) / 100 })}
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-5">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-accent" /> Estimate
+            </h3>
+            <div className="space-y-1 text-sm">
+              <Row k="Approval amount" v={fmtMoney(approval, cur)} />
+              <Row k="Finance / extra charges" v={`- ${fmtMoney(totalCharges, cur)}`} />
+              <Row k="Credits" v={`+ ${fmtMoney(form.credits, cur)}`} />
+              <Row k="Grand total" v={fmtMoney(grand, cur)} bold />
+              <Row k="Product cost" v={`- ${fmtMoney(form.productCost, cur)}`} />
+              <Row k="Deductions" v={`- ${fmtMoney(form.deductions, cur)}`} />
+              <Row k="Profit (commission base)" v={fmtMoney(profit, cur)} bold />
+              <div className="border-t my-2" />
+              <Row k={label} v={fmtMoney(commission, cur)} accent bold />
+              <Row k="Tax reserve" v={`- ${fmtMoney(taxReserve, cur)}`} />
+              <Row k="Estimated take-home" v={fmtMoney(net, cur)} accent bold />
+            </div>
+            <p className="text-xs text-muted-foreground mt-4 italic">
+              Estimate only. Final payout depends on team performance, downline activity and actual approval.
+            </p>
+          </Card>
+        </div>
+      </Section>
+
+      {/* Save as Invoice dialog */}
+      <Dialog open={saveDialog} onOpenChange={(o) => { if (!o) setSaveDialog(false); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Save as Invoice Draft</DialogTitle>
+            <DialogDescription>
+              Creates a draft invoice with your simulator values. You can complete it in the Invoices tab.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Sales rep (optional)</Label>
+              <Select value={saveForm.agentId || "none"} onValueChange={(v) => setSaveForm({ ...saveForm, agentId: v === "none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="— None —" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {s.agents.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Extra charges</Label>
+              <Label>Customer name (optional)</Label>
               <Input
-                type="number"
-                value={form.extraCharges}
-                onChange={(e) => setForm({ ...form, extraCharges: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <Label>Deductions</Label>
-              <Input
-                type="number"
-                value={form.deductions}
-                onChange={(e) => setForm({ ...form, deductions: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <Label>Credits</Label>
-              <Input
-                type="number"
-                value={form.credits}
-                onChange={(e) => setForm({ ...form, credits: Number(e.target.value) })}
-              />
-            </div>
-            <div>
-              <Label>Tax reserve %</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={(form.taxReservePercent * 100).toFixed(2)}
-                onChange={(e) =>
-                  setForm({ ...form, taxReservePercent: Number(e.target.value) / 100 })
-                }
+                value={saveForm.customerName}
+                onChange={(e) => setSaveForm({ ...saveForm, customerName: e.target.value })}
+                placeholder="Customer name"
               />
             </div>
           </div>
-        </Card>
-
-        <Card className="p-5">
-          <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-accent" /> Estimate
-          </h3>
-          <div className="space-y-1 text-sm">
-            <Row k="Approval amount" v={fmtMoney(approval, cur)} />
-            <Row k="Finance / extra charges" v={`- ${fmtMoney(totalCharges, cur)}`} />
-            <Row k="Credits" v={`+ ${fmtMoney(form.credits, cur)}`} />
-            <Row k="Grand total" v={fmtMoney(grand, cur)} bold />
-            <Row k="Product cost" v={`- ${fmtMoney(form.productCost, cur)}`} />
-            <Row k="Deductions" v={`- ${fmtMoney(form.deductions, cur)}`} />
-            <Row k="Profit (commission base)" v={fmtMoney(profit, cur)} bold />
-            <div className="border-t my-2" />
-            <Row k={label} v={fmtMoney(commission, cur)} accent bold />
-            <Row k="Tax reserve" v={`- ${fmtMoney(taxReserve, cur)}`} />
-            <Row k="Estimated take-home" v={fmtMoney(net, cur)} accent bold />
-          </div>
-          <p className="text-xs text-muted-foreground mt-4 italic">
-            Estimate only. Final payout depends on team performance, downline activity and actual
-            approval.
-          </p>
-        </Card>
-      </div>
-    </Section>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialog(false)}>Cancel</Button>
+            <Button onClick={handleSaveAsInvoice} className="bg-gradient-primary text-white hover:opacity-90">
+              Create Draft
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -1236,6 +1374,18 @@ function Row({
 }
 
 /* ========== TEMPLATES ========== */
+const INDUSTRY_ICONS: Record<string, string> = {
+  "water":            "💧",
+  "solar":            "☀️",
+  "roofing":          "🏠",
+  "hvac":             "❄️",
+  "alarm":            "🔔",
+  "home-improvement": "🔨",
+  "real-estate":      "🏡",
+  "life-insurance":   "🛡️",
+  "dealer":           "🚗",
+};
+
 export function TemplatesPanel() {
   const s = useStore();
   const apply = (id: string) => {
@@ -1243,29 +1393,34 @@ export function TemplatesPanel() {
     if (!t) return;
     if (
       !confirm(
-        `Apply "${t.name}" template? This will replace your tiers and overrides${
+        `Apply "${t.name}" kit? This will replace your tiers and overrides${
           t.finance ? " and add a finance company" : ""
         }.`
       )
     )
       return;
     s.applyTemplate(t);
-    toast.success(`${t.name} template applied`);
+    toast.success(`${t.name} kit applied`);
   };
   return (
     <Section
-      title="Industry templates"
-      desc="One-click presets for common commission models. They replace your current tiers and overrides."
+      title="Industry Launch Kits"
+      desc="One-click presets for common commission models. Apply a kit to instantly configure tiers, overrides, and finance settings for your industry."
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {INDUSTRY_TEMPLATES.map((t) => (
           <Card key={t.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-semibold">{t.name}</h3>
-                <p className="text-sm text-muted-foreground">{t.description}</p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-xl shrink-0 select-none">
+                  {INDUSTRY_ICONS[t.id] ?? "🏢"}
+                </div>
+                <div>
+                  <h3 className="font-semibold">{t.name}</h3>
+                  <p className="text-sm text-muted-foreground">{t.description}</p>
+                </div>
               </div>
-              <Button size="sm" onClick={() => apply(t.id)}>
+              <Button size="sm" className="shrink-0" onClick={() => apply(t.id)}>
                 Apply
               </Button>
             </div>
