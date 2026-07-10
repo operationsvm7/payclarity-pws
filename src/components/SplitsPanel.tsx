@@ -58,6 +58,8 @@ const ROLES: SplitParticipantRole[] = [
   "custom",
 ];
 
+const SPLIT_COLORS = ["#0B1F3A", "#0284C7", "#10B981", "#EA580C", "#7C3AED", "#DB2777"];
+
 export function roleLabel(r: SplitParticipantRole, custom?: string): string {
   if (r === "custom" && custom) return custom;
   const _ROLE_LABELS: Record<SplitParticipantRole, string> = {
@@ -364,7 +366,7 @@ function TemplateCard({ tpl }: { tpl: SplitTemplate }) {
       />
       <div className="space-y-2">
         {tpl.positions.map((p, i) => (
-          <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-end">
+          <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-start">
             <div>
               <Label className="text-xs">{t("spl_role")}</Label>
               <Select
@@ -399,10 +401,20 @@ function TemplateCard({ tpl }: { tpl: SplitTemplate }) {
                   s.updateSplitTemplate(tpl.id, { positions: next });
                 }}
               />
+              <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-200"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, p.splitPercent * 100))}%`,
+                    backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length],
+                  }}
+                />
+              </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
+              className="mt-5"
               onClick={() => {
                 const next = tpl.positions.filter((_, j) => j !== i);
                 s.updateSplitTemplate(tpl.id, { positions: next });
@@ -412,6 +424,18 @@ function TemplateCard({ tpl }: { tpl: SplitTemplate }) {
             </Button>
           </div>
         ))}
+      </div>
+      {/* Total allocation bar */}
+      <div className="space-y-1">
+        <div className="h-2 rounded-full bg-muted overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-200"
+            style={{
+              width: `${Math.min(100, total * 100)}%`,
+              backgroundColor: valid ? "#10B981" : total > 1 ? "#EF4444" : "#F59E0B",
+            }}
+          />
+        </div>
       </div>
       <div className="flex items-center justify-between">
         <Button
@@ -427,9 +451,10 @@ function TemplateCard({ tpl }: { tpl: SplitTemplate }) {
           {t("spl_add_position")}
         </Button>
         <span
-          className={`text-xs font-mono ${valid ? "text-emerald-500" : "text-destructive"}`}
+          className={`text-xs font-mono ${valid ? "text-emerald-500" : total > 1 ? "text-destructive" : "text-amber-500"}`}
         >
-          Total {(total * 100).toFixed(1)}%
+          Total {(total * 100).toFixed(1)}%{" "}
+          {valid ? "✓" : total > 1 ? "(>100%)" : "(<100%)"}
         </span>
       </div>
     </div>
@@ -845,40 +870,34 @@ export function SplitEditorDialog({
         {participants.length > 0 && (
           <div className="space-y-2">
             <div className="flex h-4 rounded-full overflow-hidden gap-px">
-              {participants.map((p, i) => {
-                const COLORS = [
-                  "bg-blue-500","bg-emerald-500","bg-violet-500","bg-amber-500",
-                  "bg-rose-500","bg-cyan-500","bg-orange-500","bg-pink-500",
-                ];
-                return (
-                  <div
-                    key={p.id}
-                    className={`${COLORS[i % COLORS.length]} transition-all duration-200`}
-                    style={{ width: `${Math.max(0, (p.splitPercent || 0) * 100)}%` }}
-                    title={`${p.displayName || "Participant"}: ${((p.splitPercent || 0) * 100).toFixed(1)}%`}
-                  />
-                );
-              })}
+              {participants.map((p, i) => (
+                <div
+                  key={p.id}
+                  className="transition-all duration-200"
+                  style={{
+                    width: `${Math.max(0, (p.splitPercent || 0) * 100)}%`,
+                    backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length],
+                  }}
+                  title={`${p.displayName || "Participant"}: ${((p.splitPercent || 0) * 100).toFixed(1)}%`}
+                />
+              ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              {participants.map((p, i) => {
-                const COLORS = [
-                  "bg-blue-500","bg-emerald-500","bg-violet-500","bg-amber-500",
-                  "bg-rose-500","bg-cyan-500","bg-orange-500","bg-pink-500",
-                ];
-                return (
-                  <span key={p.id} className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <span className={`w-2 h-2 rounded-full ${COLORS[i % COLORS.length]}`} />
-                    {p.displayName || `P${i + 1}`}
-                    <span className="font-mono font-semibold text-foreground">
-                      {((p.splitPercent || 0) * 100).toFixed(1)}%
-                    </span>
-                    <span className="font-mono text-accent">
-                      {fmtMoney(pool * (p.splitPercent || 0), s.company.currency)}
-                    </span>
+              {participants.map((p, i) => (
+                <span key={p.id} className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <span
+                    className="w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length] }}
+                  />
+                  {p.displayName || `P${i + 1}`}
+                  <span className="font-mono font-semibold text-foreground">
+                    {((p.splitPercent || 0) * 100).toFixed(1)}%
                   </span>
-                );
-              })}
+                  <span className="font-mono text-accent">
+                    {fmtMoney(pool * (p.splitPercent || 0), s.company.currency)}
+                  </span>
+                </span>
+              ))}
             </div>
           </div>
         )}
@@ -965,6 +984,15 @@ export function SplitEditorDialog({
                     updateP(i, { splitPercent: Number(e.target.value) / 100 })
                   }
                 />
+                <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-200"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (p.splitPercent || 0) * 100))}%`,
+                      backgroundColor: SPLIT_COLORS[i % SPLIT_COLORS.length],
+                    }}
+                  />
+                </div>
               </div>
               <div className="col-span-1 text-right text-xs font-mono">
                 {fmtMoney(pool * p.splitPercent, s.company.currency)}
@@ -1004,11 +1032,22 @@ export function SplitEditorDialog({
             <Plus className="w-4 h-4 mr-1" />
             {t("spl_add_participant")}
           </Button>
-          <div
-            className={`font-mono ${valid ? "text-emerald-500" : "text-destructive"}`}
-          >
-            Total {(total * 100).toFixed(2)}%{" "}
-            {valid ? "✓" : t("spl_must_100")}
+          <div className="flex flex-col items-end gap-1 min-w-[160px]">
+            <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-200"
+                style={{
+                  width: `${Math.min(100, total * 100)}%`,
+                  backgroundColor: valid ? "#10B981" : total > 1 ? "#EF4444" : "#F59E0B",
+                }}
+              />
+            </div>
+            <div
+              className={`text-xs font-mono ${valid ? "text-emerald-500" : total > 1 ? "text-destructive" : "text-amber-500"}`}
+            >
+              Total {(total * 100).toFixed(2)}%{" "}
+              {valid ? "✓" : total > 1 ? "(>100%)" : t("spl_must_100")}
+            </div>
           </div>
         </div>
 

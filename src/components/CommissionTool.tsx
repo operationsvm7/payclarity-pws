@@ -13,6 +13,7 @@ import {
   Wallet, Calculator, CalendarDays, BookTemplate, MessageSquare, HelpCircle, Shield, UserRound,
   LayoutDashboard, FileBarChart, FileSpreadsheet, Languages, Wand2, Settings2, Upload, Package,
   Split as SplitIcon, Activity, LogOut, ChevronDown, Users2, ShieldAlert, ArrowRight, ChevronLeft,
+  Moon, Sun, Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/commission-calc";
 import {
   buildSaleAndDownload, buildSaleInvoicePDF, buildAgentCommissionPDF,
+  buildOverridePDF,
   downloadAllCommissionPDFs, downloadSummary, makeBrandingSnapshot, INVOICE_TEMPLATES,
 } from "@/lib/generate-invoices";
 import {
@@ -41,6 +43,7 @@ import { AdminGate } from "@/components/AdminGate";
 import { AdjustmentsPanel, CsvImportPanel, SetupWizard } from "@/components/CompetitivePanels";
 import { SplitsPanel, SplitEditorDialog, totalSplitPercent, isSplitValid } from "@/components/SplitsPanel";
 import { NotificationsBell } from "@/components/NotificationsBell";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { InvoiceTimelineDialog } from "@/components/InvoiceTimelineDialog";
 import { useT } from "@/lib/i18n";
 import { useSupabaseSync } from "@/hooks/useSupabaseSync";
@@ -103,10 +106,50 @@ const MC_COLORS = [
   "from-cyan-500 to-cyan-600",
 ];
 
+type CompanyStats = { sales: number; pending: number; agents: number };
+
 function MultiCompanyDashboard({ onEnter }: { onEnter: (companyId: string) => void }) {
   const { companiesList, profile, switchCompany } = useAuth();
   const t = useT();
   const [entering, setEntering] = useState<string | null>(null);
+  const [stats, setStats] = useState<Record<string, CompanyStats>>({});
+
+  useEffect(() => {
+    if (!companiesList.length) return;
+    const ids = companiesList.map((c) => c.id);
+
+    Promise.all([
+      supabase.from("invoices").select("company_id, sales_amount").in("company_id", ids),
+      supabase.from("payments").select("company_id, amount").in("company_id", ids),
+      supabase.from("agents").select("company_id").in("company_id", ids),
+    ]).then(([invRes, payRes, agRes]) => {
+      const map: Record<string, CompanyStats> = {};
+      for (const id of ids) map[id] = { sales: 0, pending: 0, agents: 0 };
+      for (const row of invRes.data ?? []) {
+        if (row.company_id in map) map[row.company_id].sales += Number(row.sales_amount ?? 0);
+      }
+      const paidByCompany: Record<string, number> = {};
+      for (const row of payRes.data ?? []) {
+        paidByCompany[row.company_id] = (paidByCompany[row.company_id] ?? 0) + Number(row.amount ?? 0);
+      }
+      for (const id of ids) {
+        map[id].pending = Math.max(0, map[id].sales * 0.1 - (paidByCompany[id] ?? 0));
+      }
+      for (const row of agRes.data ?? []) {
+        if (row.company_id in map) map[row.company_id].agents++;
+      }
+      setStats(map);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companiesList.length]);
+
+  const totals = useMemo(() => {
+    const vals = Object.values(stats);
+    return {
+      sales: vals.reduce((a, s) => a + s.sales, 0),
+      pending: vals.reduce((a, s) => a + s.pending, 0),
+    };
+  }, [stats]);
 
   async function handleEnter(companyId: string) {
     setEntering(companyId);
@@ -116,21 +159,44 @@ function MultiCompanyDashboard({ onEnter }: { onEnter: (companyId: string) => vo
   }
 
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center py-12 px-4">
-      <div className="text-center mb-10">
+    <div className="min-h-[70vh] flex flex-col items-center py-10 px-4">
+      {/* Workspace header */}
+      <div className="text-center mb-8">
         <div className="w-14 h-14 rounded-2xl bg-gradient-cta shadow-btn flex items-center justify-center mx-auto mb-4">
           <Building2 className="w-7 h-7 text-white" />
         </div>
         <h2 className="text-2xl font-bold mb-1">{t("mc_title")}</h2>
-        <p className="text-muted-foreground text-sm">
-          {t("mc_subtitle")}
-        </p>
+        <p className="text-muted-foreground text-sm">{t("mc_subtitle")}</p>
       </div>
+
+      {/* Global aggregate KPIs */}
+      {companiesList.length > 1 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-2xl mb-8">
+          <div className="rounded-xl border border-border/60 bg-background p-4 text-center shadow-sm">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Workspace</div>
+            <div className="text-xl font-bold font-mono">{companiesList.length}</div>
+            <div className="text-xs text-muted-foreground">empresas</div>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background p-4 text-center shadow-sm">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Total Sales</div>
+            <div className="text-xl font-bold font-mono text-accent">{fmtMoney(totals.sales, "USD")}</div>
+            <div className="text-xs text-muted-foreground">todas las empresas</div>
+          </div>
+          <div className="col-span-2 sm:col-span-1 rounded-xl border border-border/60 bg-background p-4 text-center shadow-sm">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Pending Payouts</div>
+            <div className="text-xl font-bold font-mono text-orange">{fmtMoney(totals.pending, "USD")}</div>
+            <div className="text-xs text-muted-foreground">por pagar</div>
+          </div>
+        </div>
+      )}
+
+      {/* Company cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-3xl">
         {companiesList.map((company, i) => {
           const isActive = company.id === profile?.company_id;
           const colorClass = MC_COLORS[i % MC_COLORS.length];
           const initial = company.name.trim()[0]?.toUpperCase() ?? "?";
+          const cs = stats[company.id];
           return (
             <div
               key={company.id}
@@ -146,8 +212,20 @@ function MultiCompanyDashboard({ onEnter }: { onEnter: (companyId: string) => vo
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white text-xl font-bold mb-3 shadow-sm`}>
                 {initial}
               </div>
-              <h3 className="font-bold text-base leading-tight mb-1 pr-14 truncate">{company.name}</h3>
-              <p className="text-xs text-muted-foreground capitalize mb-4">{company.role}</p>
+              <h3 className="font-bold text-base leading-tight mb-0.5 pr-14 truncate">{company.name}</h3>
+              <p className="text-xs text-muted-foreground capitalize mb-3">{company.role}</p>
+              {cs && (
+                <div className="grid grid-cols-2 gap-1.5 mb-3">
+                  <div className="rounded-lg bg-muted/50 px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-muted-foreground">Ventas</div>
+                    <div className="text-xs font-mono font-semibold">{fmtMoney(cs.sales, "USD")}</div>
+                  </div>
+                  <div className="rounded-lg bg-muted/50 px-2 py-1.5 text-center">
+                    <div className="text-[10px] text-muted-foreground">Reps</div>
+                    <div className="text-xs font-mono font-semibold">{cs.agents}</div>
+                  </div>
+                </div>
+              )}
               <Button
                 className="w-full gap-1.5"
                 variant={isActive ? "default" : "outline"}
@@ -170,8 +248,13 @@ export default function CommissionTool() {
   const t = useT();
   const navGroups = makeNavGroups(t);
   const repGroups = makeRepGroups(t);
-  const { profile, signOut, companiesList, switchCompany } = useAuth();
+  const { profile, signOut, companiesList, switchCompany, updateAvatar } = useAuth();
   const { dataLoaded } = useSupabaseSync();
+
+  // Apply dark class to <html> when theme changes
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", s.theme === "dark");
+  }, [s.theme]);
 
   // Sync Zustand role with the authenticated user's role from Supabase
   useEffect(() => {
@@ -197,6 +280,62 @@ export default function CommissionTool() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   // Multi-company picker: shown when admin/accountant has access to >1 company
+  // Profile avatar upload
+  function pickProfileAvatar() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const SIZE = 80;
+          const canvas = document.createElement("canvas");
+          canvas.width = SIZE; canvas.height = SIZE;
+          const ctx = canvas.getContext("2d")!;
+          const min = Math.min(img.width, img.height);
+          const sx = (img.width - min) / 2;
+          const sy = (img.height - min) / 2;
+          ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+          updateAvatar(canvas.toDataURL("image/jpeg", 0.75));
+        };
+        img.src = e.target!.result as string;
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  }
+
+  // Load all profile avatars (indexed by email) for showing next to agents
+  const [profileAvatars, setProfileAvatars] = useState<Record<string, string>>({});
+  useEffect(() => {
+    supabase.from("profiles").select("email, avatar_url").then(({ data }) => {
+      if (!data) return;
+      const map: Record<string, string> = {};
+      for (const p of data) {
+        if (p.email && p.avatar_url) map[p.email] = p.avatar_url;
+      }
+      setProfileAvatars(map);
+    });
+  }, []);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Cmd+K / Ctrl+K to open global search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const [pickerMode, setPickerMode] = useState(false);
   useEffect(() => {
     if (companiesList.length > 1 && !pickerMode) setPickerMode(true);
@@ -327,6 +466,25 @@ export default function CommissionTool() {
               </button>
             )}
 
+            {/* Search button */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="flex items-center gap-1.5 h-9 px-2 sm:px-3 rounded-lg border border-border/60 bg-background/80 text-muted-foreground hover:text-foreground hover:border-border transition-colors text-sm"
+              title="Buscar (⌘K)"
+            >
+              <Search className="w-4 h-4" />
+              <span className="hidden sm:inline text-xs">⌘K</span>
+            </button>
+
+            {/* Dark mode toggle */}
+            <button
+              onClick={s.toggleTheme}
+              className="h-9 w-9 flex items-center justify-center rounded-lg border border-border/60 bg-background/80 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+              title={s.theme === "dark" ? "Modo claro" : "Modo oscuro"}
+            >
+              {s.theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+
             <NotificationsBell />
 
             {/* Rep selector – full width under header on mobile */}
@@ -347,8 +505,13 @@ export default function CommissionTool() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 px-2 sm:px-3 py-2 rounded-xl bg-gradient-primary hover:opacity-90 transition-all shadow-elegant text-sm">
-                  <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
-                    {isAdmin ? <Shield className="w-3.5 h-3.5 text-white" /> : <UserRound className="w-3.5 h-3.5 text-white" />}
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex items-center justify-center shrink-0">
+                    {profile?.avatar_url
+                      ? <img src={profile.avatar_url} alt={profile.full_name ?? ""} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full bg-white/20 flex items-center justify-center">
+                          {isAdmin ? <Shield className="w-3.5 h-3.5 text-white" /> : <UserRound className="w-3.5 h-3.5 text-white" />}
+                        </div>
+                    }
                   </div>
                   <div className="text-left hidden sm:block">
                     <p className="font-semibold leading-tight text-white truncate max-w-[100px] text-xs">
@@ -360,11 +523,30 @@ export default function CommissionTool() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                <div className="px-3 py-2">
-                  <p className="text-sm font-semibold truncate">{profile?.full_name ?? "User"}</p>
-                  <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
-                  <p className="text-xs text-accent capitalize mt-0.5">{s.role}</p>
+                <div className="px-3 py-2 flex items-center gap-3">
+                  <div
+                    className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 cursor-pointer border-2 border-border hover:border-accent transition-colors"
+                    onClick={pickProfileAvatar}
+                    title="Cambiar foto"
+                  >
+                    {profile?.avatar_url
+                      ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                      : <div style={{ background: nameToColor(profile?.full_name ?? profile?.email ?? "U") }} className="w-full h-full flex items-center justify-center text-white font-semibold text-sm">
+                          {getInitials(profile?.full_name ?? profile?.email ?? "U")}
+                        </div>
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{profile?.full_name ?? "User"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+                    <p className="text-xs text-accent capitalize mt-0.5">{s.role}</p>
+                  </div>
                 </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={pickProfileAvatar} className="cursor-pointer">
+                  <Upload className="w-4 h-4 mr-2 text-muted-foreground" />
+                  {t("menu_change_photo")}
+                </DropdownMenuItem>
                 {companiesList.length > 1 && (
                   <>
                     <DropdownMenuSeparator />
@@ -488,7 +670,7 @@ export default function CommissionTool() {
             <TabsContent value="dashboard">
               <DashboardQuickActions onNav={(t, g) => { setGroup(g); setTab(t); }} onWizard={() => setWizardOpen(true)} />
               <div className="h-6" />
-              <DashboardPanel />
+              <DashboardPanel profileAvatars={profileAvatars} />
             </TabsContent>
           )}
           <TabsContent value="invoices"><InvoicesPanel /></TabsContent>
@@ -504,7 +686,7 @@ export default function CommissionTool() {
             <TabsContent value="adjustments"><AdjustmentsPanel /></TabsContent>
             <TabsContent value="import"><CsvImportPanel /></TabsContent>
             <TabsContent value="templates"><TemplatesPanel /></TabsContent>
-            <TabsContent value="agents"><AgentsPanel /></TabsContent>
+            <TabsContent value="agents"><AgentsPanel profileAvatars={profileAvatars} /></TabsContent>
             <TabsContent value="finance"><FinancePanel /></TabsContent>
             <TabsContent value="plan"><PlanPanel /></TabsContent>
             <TabsContent value="products"><ProductsPanel /></TabsContent>
@@ -518,6 +700,16 @@ export default function CommissionTool() {
       </main>
       {wizardOpen && <SetupWizard onClose={() => setWizardOpen(false)} />}
       <AdminGate open={adminOpen} onClose={() => setAdminOpen(false)} />
+      <GlobalSearch
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onNavigate={(tab) => {
+          setSearchOpen(false);
+          setTab(tab);
+          const grp = navGroups.find((g) => g.tabs.some((t2) => t2.id === tab));
+          if (grp) setGroup(grp.id);
+        }}
+      />
     </div>
   );
 }
@@ -622,8 +814,69 @@ function Field({ label, value, onChange, type = "text" }: { label: string; value
   );
 }
 
+/* ---------- Avatar helpers ---------- */
+const AVATAR_COLORS = [
+  "#4f46e5","#7c3aed","#db2777","#dc2626","#ea580c",
+  "#ca8a04","#16a34a","#0891b2","#0284c7","#9333ea",
+];
+function nameToColor(name: string) {
+  let h = 0;
+  for (const c of name) h = h * 31 + c.charCodeAt(0);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+function getInitials(name: string) {
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+function AgentAvatar({ name, avatarUrl, size = 28, onClick }: { name: string; avatarUrl?: string; size?: number; onClick?: () => void }) {
+  const style: CSSProperties = { width: size, height: size, flexShrink: 0, cursor: onClick ? "pointer" : "default" };
+  if (avatarUrl) {
+    return (
+      <div style={style} className="rounded-full overflow-hidden border border-border/40" onClick={onClick} title={onClick ? "Cambiar foto" : name}>
+        <img src={avatarUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{ ...style, background: nameToColor(name) }}
+      className="rounded-full flex items-center justify-center text-white font-semibold"
+      onClick={onClick}
+      title={onClick ? "Subir foto" : name}
+    >
+      <span style={{ fontSize: size * 0.38 }}>{getInitials(name)}</span>
+    </div>
+  );
+}
+function pickAvatarFile(agentId: string, updateAgent: (id: string, data: Partial<import("@/lib/commission-store").Agent>) => void) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const SIZE = 80;
+        const canvas = document.createElement("canvas");
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext("2d")!;
+        const min = Math.min(img.width, img.height);
+        const sx = (img.width - min) / 2;
+        const sy = (img.height - min) / 2;
+        ctx.drawImage(img, sx, sy, min, min, 0, 0, SIZE, SIZE);
+        updateAgent(agentId, { avatarUrl: canvas.toDataURL("image/jpeg", 0.75) });
+      };
+      img.src = e.target!.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
 /* ---------- Agents ---------- */
-function AgentsPanel() {
+function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string> }) {
   const { agents, addAgent, updateAgent, removeAgent, positions } = useStore();
   const t = useT();
   const [form, setForm] = useState({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
@@ -691,6 +944,7 @@ function AgentsPanel() {
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground uppercase tracking-wider">
               <tr>
+                <th className="py-2 w-10"></th>
                 <th className="py-2">{t("th_name")}</th><th>{t("th_email")}</th><th>{t("th_sponsor")}</th>
                 <th>{t("th_commission")}</th><th>{t("th_level")}</th>
                 <th>{t("th_state")}</th><th>{t("th_w9")}</th><th>{t("th_tax_pct")}</th><th>{t("th_pay_method")}</th>
@@ -700,6 +954,9 @@ function AgentsPanel() {
             <tbody>
               {agents.map((a) => (
                 <tr key={a.id} className="border-t border-border/60">
+                  <td className="py-2">
+                    <AgentAvatar name={a.name} avatarUrl={profileAvatars[a.email] ?? a.avatarUrl} size={30} onClick={() => pickAvatarFile(a.id, updateAgent)} />
+                  </td>
                   <td className="py-2 font-medium">{a.name}</td>
                   <td className="text-muted-foreground">{a.email || "—"}</td>
                   <td>
@@ -1729,6 +1986,12 @@ function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> })
     const doc = buildAgentCommissionPDF(p, company, invoiceDate, periodLabel);
     doc.save(`commission_${p.agent.name.replace(/\s+/g, "_")}.pdf`);
   };
+  const downloadOverride = (id: string) => {
+    const p = payouts.find((x) => x.agent.id === id);
+    if (!p || !p.downline.length) return;
+    const doc = buildOverridePDF(p, company, invoiceDate, periodLabel);
+    doc.save(`override_${p.agent.name.replace(/\s+/g, "_")}.pdf`);
+  };
 
   return (
     <SectionCard
@@ -1789,6 +2052,11 @@ function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> })
                     <td className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => previewOne(p.agent.id)} disabled={p.grossPayout <= 0}>{t("btn_preview")}</Button>
                       <Button variant="ghost" size="sm" onClick={() => downloadOne(p.agent.id)} disabled={p.grossPayout <= 0}>PDF</Button>
+                      {p.downline.length > 0 && (
+                        <Button variant="ghost" size="sm" onClick={() => downloadOverride(p.agent.id)} title="Download override invoice (sponsors only)">
+                          Override PDF
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))}

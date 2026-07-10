@@ -138,6 +138,7 @@ const D: Dict = {
 
   // Menu
   menu_sign_out: { es: "Cerrar sesión", en: "Sign out" },
+  menu_change_photo: { es: "Cambiar foto", en: "Change photo" },
 
   // Buttons
   btn_add: { es: "Agregar", en: "Add" },
@@ -291,7 +292,7 @@ const D: Dict = {
   th_sales: { es: "Ventas", en: "Sales" },
   th_profit: { es: "Profit", en: "Profit" },
   th_sponsor: { es: "Patrocinador", en: "Sponsor" },
-  th_commission: { es: "Comisión %", en: "Commission %" },
+  th_commission: { es: "Regla de comisión", en: "Commission Rule" },
   th_state: { es: "Estado", en: "State" },
   th_w9: { es: "W-9", en: "W-9" },
   th_tax_pct: { es: "% Impuesto", en: "Tax %" },

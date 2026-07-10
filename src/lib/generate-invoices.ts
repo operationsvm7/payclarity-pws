@@ -471,6 +471,93 @@ export function buildAgentCommissionPDF(
   return doc;
 }
 
+/* -------- Sponsor override PDF (dedicated document) -------- */
+
+export function buildOverridePDF(
+  p: AgentPayout,
+  company: Company,
+  invoiceDate: string,
+  period: string
+): jsPDF {
+  const b = resolveBranding(company);
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const margin = 40;
+  const cur = b.currency;
+  const brand = hexToRgb(b.brandColor);
+  const accent = hexToRgb(b.brandColorSecondary);
+
+  let y = drawHeader(doc, b, "OVERRIDE COMMISSION INVOICE", [
+    `Date: ${invoiceDate}`,
+    `Period: ${period}`,
+  ]);
+
+  // Sponsor info block
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("OVERRIDE EARNED BY", margin, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(p.agent.name, margin, y + 16);
+  doc.text(p.agent.email || "", margin, y + 30);
+
+  y += 60;
+
+  // Downline table
+  autoTable(doc, {
+    startY: y,
+    head: [["Downline Rep", "Level", `Profit (${cur})`, "Override Rate", `Override (${cur})`]],
+    body: p.downline.map((d) => [
+      d.agent.name,
+      `Level ${d.level}`,
+      fmtMoney(d.profit, cur),
+      `${(d.rate * 100).toFixed(2)}%`,
+      fmtMoney(d.override, cur),
+    ]),
+    foot: [["", "", "", "Total Override", fmtMoney(p.overrideTotal, cur)]],
+    headStyles: { fillColor: brand, textColor: 255 },
+    footStyles: { fillColor: hexToRgb(b.brandColorSecondary), textColor: 255, fontStyle: "bold" },
+    styles: { fontSize: 9 },
+    margin: { left: margin, right: margin },
+    columnStyles: {
+      2: { halign: "right" },
+      3: { halign: "right" },
+      4: { halign: "right" },
+    },
+  });
+  y = (doc as any).lastAutoTable.finalY + 20;
+
+  // Summary box (right-aligned, minimal)
+  autoTable(doc, {
+    startY: y,
+    body: [
+      ["Override commission", fmtMoney(p.overrideTotal, cur)],
+      [
+        { content: "TOTAL PAYABLE", styles: { fontStyle: "bold" } },
+        { content: fmtMoney(p.overrideTotal, cur), styles: { fontStyle: "bold" } },
+      ],
+    ],
+    theme: "plain",
+    margin: { left: pageW / 2, right: margin },
+    styles: { fontSize: 10 },
+    columnStyles: { 1: { halign: "right" } },
+  });
+
+  // Separator note
+  y = (doc as any).lastAutoTable.finalY + 16;
+  doc.setFontSize(8);
+  doc.setTextColor(140);
+  doc.text(
+    "This document reflects override commissions only. Personal commissions are issued separately.",
+    margin,
+    y,
+    { maxWidth: pageW - margin * 2 }
+  );
+
+  drawFooter(doc, b);
+  return doc;
+}
+
 export function downloadAllCommissionPDFs(
   payouts: AgentPayout[],
   company: Company,

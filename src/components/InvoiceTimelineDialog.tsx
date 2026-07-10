@@ -9,12 +9,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileText, Split as SplitIcon, MessageSquare, Activity, Download, ArrowDownNarrowWide, ArrowUpNarrowWide } from "lucide-react";
+import { FileText, Split as SplitIcon, MessageSquare, Activity, Download, ArrowDownNarrowWide, ArrowUpNarrowWide, Receipt } from "lucide-react";
 import { useStore } from "@/lib/commission-store";
 import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 
-type SourceFilter = "all" | "split" | "pdf" | "dispute";
+type SourceFilter = "all" | "split" | "pdf" | "dispute" | "invoice";
 type SortOrder = "newest" | "oldest";
 const FILTERS_KEY = "invoiceTimeline.filters";
 const NOTIF_SORT_KEY = "notifications.sortOrder";
@@ -46,7 +46,7 @@ function readNotifSort(): SortOrder {
 
 type TimelineEntry = {
   at: string;
-  source: "split" | "pdf" | "dispute";
+  source: "split" | "pdf" | "dispute" | "invoice";
   by: string;
   action: string;
   message: string;
@@ -104,6 +104,25 @@ export function InvoiceTimelineDialog({
   const allEntries = useMemo<TimelineEntry[]>(() => {
     if (!inv) return [];
     const out: TimelineEntry[] = [];
+    // Invoice creation event
+    const agentName = s.agents.find((a) => a.id === inv.agentId)?.name ?? "—";
+    out.push({
+      at: `${inv.date}T00:00:00.000Z`,
+      source: "invoice",
+      by: agentName,
+      action: isEs ? "Invoice creada" : "Invoice created",
+      message: `${inv.customerName || (isEs ? "cliente" : "customer")} · ${inv.number}`,
+    });
+    // Status changes
+    if (inv.status === "paid") {
+      out.push({
+        at: inv.date + "T23:59:00.000Z",
+        source: "invoice",
+        by: "admin",
+        action: isEs ? "Marcada como pagada" : "Marked as paid",
+        message: inv.number,
+      });
+    }
     for (const h of inv.split?.history ?? []) {
       out.push({
         at: h.at, source: "split", by: h.by,
@@ -206,6 +225,7 @@ export function InvoiceTimelineDialog({
 
   const SOURCES: { key: SourceFilter; label: string }[] = [
     { key: "all", label: t("tl_filter_all") },
+    { key: "invoice", label: isEs ? "Invoice" : "Invoice" },
     { key: "split", label: t("tl_filter_splits") },
     { key: "pdf", label: t("tl_filter_pdfs") },
     { key: "dispute", label: t("tl_filter_disputes") },
@@ -289,11 +309,13 @@ export function InvoiceTimelineDialog({
           <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
             {entries.map((e, i) => {
               const Icon =
-                e.source === "split"
-                  ? SplitIcon
-                  : e.source === "pdf"
-                    ? FileText
-                    : MessageSquare;
+                e.source === "invoice"
+                  ? Receipt
+                  : e.source === "split"
+                    ? SplitIcon
+                    : e.source === "pdf"
+                      ? FileText
+                      : MessageSquare;
               return (
                 <li
                   key={i}

@@ -5,6 +5,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "water",
     name: "Water Systems",
     description: "Residential water treatment / softeners with finance partner and install fee.",
+    emoji: "💧",
     charges: [
       { label: "Install fee", amount: 350 },
       { label: "Permit", amount: 75 },
@@ -32,6 +33,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "solar",
     name: "Solar",
     description: "Residential solar with PPA/finance, redline pricing and dealer fee.",
+    emoji: "☀️",
     charges: [{ label: "Engineering / permitting", amount: 500 }],
     finance: {
       name: "GoodLeap",
@@ -57,6 +59,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "roofing",
     name: "Roofing",
     description: "Storm restoration and retail roofing with material + labor cost split.",
+    emoji: "🏠",
     charges: [{ label: "Dump / disposal", amount: 350 }],
     finance: null,
     tiers: [
@@ -71,6 +74,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "hvac",
     name: "HVAC",
     description: "Residential HVAC replacement / install with finance and rebate credits.",
+    emoji: "❄️",
     charges: [{ label: "Crane / lift", amount: 250 }],
     finance: {
       name: "Synchrony HVAC",
@@ -95,6 +99,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "alarm",
     name: "Alarm Systems",
     description: "Security & monitoring; multipliers, RMR-based payout.",
+    emoji: "🔔",
     charges: [{ label: "Activation", amount: 99 }],
     finance: null,
     tiers: [
@@ -113,6 +118,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "home-improvement",
     name: "Home Improvement",
     description: "Windows, baths, siding — finance partner with redline pricing.",
+    emoji: "🔨",
     charges: [{ label: "Measure / design", amount: 200 }],
     finance: {
       name: "Service Finance",
@@ -137,6 +143,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "real-estate",
     name: "Real Estate Referrals",
     description: "Per-deal referral fees with simple flat overrides.",
+    emoji: "🏡",
     charges: [],
     finance: null,
     tiers: [
@@ -150,6 +157,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "life-insurance",
     name: "Life Insurance",
     description: "Term & whole life policies; commission based on annualized premium (AP) with carrier overrides.",
+    emoji: "🛡️",
     charges: [
       { label: "Policy issue fee", amount: 50 },
       { label: "Underwriting / exam", amount: 75 },
@@ -178,6 +186,7 @@ export const INDUSTRY_TEMPLATES: IndustryTemplate[] = [
     id: "dealer",
     name: "Finance / Dealer Sales",
     description: "Indirect lending / dealer commission with admin & dealer fees.",
+    emoji: "🚗",
     charges: [],
     finance: {
       name: "Generic Lender",

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Wallet, FileDown, Sparkles } from "lucide-react";
+import { Plus, Trash2, Wallet, FileDown, Sparkles, Paperclip, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useStore, type Invoice } from "@/lib/commission-store";
 import {
   calcInvoice,
@@ -73,6 +74,27 @@ function Empty({ msg }: { msg: string }) {
       {msg}
     </div>
   );
+}
+
+/* ---------- Avatar helpers ---------- */
+const AVATAR_COLORS = [
+  "#4f46e5","#7c3aed","#db2777","#dc2626","#ea580c",
+  "#ca8a04","#16a34a","#0891b2","#0284c7","#9333ea",
+];
+function nameToColor(name: string) {
+  let h = 0;
+  for (const c of name) h = h * 31 + c.charCodeAt(0);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+function getInitials(name: string) {
+  return name.split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+function fmtDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return iso.slice(0, 10);
+  }
 }
 
 /* ========== WALLET PANEL ========== */
@@ -432,31 +454,42 @@ export function ExplainDialog({
   const reserveAmt = payout ? payout.taxReserveSuggested : 0;
   const finalAmt = payout ? payout.finalPayable : null;
 
+  // Build natural-language bullets
   const bullets: string[] = [];
   if (isEs) {
-    bullets.push(`Vendiste a ${inv.customerName || "cliente"} por ${m(inv.salesAmount)}.`);
-    if (inv.productCost) bullets.push(`El costo del producto fue ${m(inv.productCost)}.`);
-    bullets.push(`${c.financeCo?.name || "La financiera"} aprobó el ${pct(inv.approvalPercent)} de la venta → ${m(c.approvalAmount)}.`);
-    if (inv.discount) bullets.push(`Se aplicó un descuento de ${m(inv.discount)}.`);
-    if (c.financeCo && inv.saleType === "finance") bullets.push(`Comisión de ${c.financeCo.name}: ${m(c.financeCo.defaultFee * inv.salesAmount)} + tarifa admin ${m(c.financeCo.adminFee)}.`);
-    if (dealerFeeVal > 0) bullets.push(`Cuota dealer bancario: ${m(dealerFeeVal)}.`);
-    if (ccpfVal > 0) bullets.push(`Cargo por procesamiento de tarjeta (CCPF al ${pct(inv.ccpfPercent ?? 0.035)}): ${m(ccpfVal)}.`);
-    if (adminFeeVal > 0) bullets.push(`Tarifa admin al ${pct(inv.adminFeePercent || 0)}: ${m(adminFeeVal)}.`);
-    if (inv.charges.length) inv.charges.forEach((ch) => bullets.push(`Cargo adicional — ${ch.label || "cargo"}: ${m(ch.amount)}.`));
-    if (inv.credits.length) inv.credits.forEach((cr) => bullets.push(`Crédito agregado — ${cr.label || "crédito"}: ${m(cr.amount)}.`));
-    bullets.push(`El profit final fue ${m(c.profit)}.`);
+    bullets.push(`Vendiste ${inv.customerName ? `a ${inv.customerName}` : "esta venta"} por un total de ${m(inv.salesAmount)}.`);
+    if (inv.productCost) bullets.push(`El costo del producto fue ${m(inv.productCost)}, que se descontó del profit.`);
+    if (c.financeCo && inv.saleType === "finance") {
+      bullets.push(`${c.financeCo.name} aprobó el ${pct(inv.approvalPercent)} de la venta — es decir, ${m(c.approvalAmount)} aprobados.`);
+      const feeTotal = c.financeCo.defaultFee * inv.salesAmount + c.financeCo.adminFee;
+      if (feeTotal > 0) bullets.push(`La financiera cobró comisión más tarifas por un total de ${m(feeTotal)}.`);
+    } else if (inv.approvalPercent < 1) {
+      bullets.push(`Se aprobó el ${pct(inv.approvalPercent)} de la venta — ${m(c.approvalAmount)}.`);
+    }
+    if (dealerFeeVal > 0) bullets.push(`Se aplicó una tarifa dealer de ${m(dealerFeeVal)}.`);
+    if (adminFeeVal > 0) bullets.push(`Se aplicó una tarifa admin del ${pct(inv.adminFeePercent || 0)}, que equivale a ${m(adminFeeVal)}.`);
+    if (ccpfVal > 0) bullets.push(`Se sumó un cargo por pago con tarjeta del ${pct(inv.ccpfPercent ?? 0.035)}, equivalente a ${m(ccpfVal)}.`);
+    if (inv.discount) bullets.push(`Se aplicó un descuento de ${m(inv.discount)} sobre la venta.`);
+    if (inv.charges.length) inv.charges.forEach((ch) => bullets.push(`Se agregó el cargo "${ch.label || "cargo extra"}" por ${m(ch.amount)}.`));
+    if (inv.credits.length) inv.credits.forEach((cr) => bullets.push(`Se sumó un crédito "${cr.label || "crédito"}" de ${m(cr.amount)} a tu favor.`));
+    bullets.push(`Después de todos los cargos y deducciones, el profit final fue de ${m(c.profit)}.`);
   } else {
-    bullets.push(`You sold to ${inv.customerName || "customer"} for ${m(inv.salesAmount)}.`);
-    if (inv.productCost) bullets.push(`Product cost was ${m(inv.productCost)}.`);
-    bullets.push(`${c.financeCo?.name || "Lender"} approved ${pct(inv.approvalPercent)} of the sale → ${m(c.approvalAmount)}.`);
-    if (inv.discount) bullets.push(`A discount of ${m(inv.discount)} was applied.`);
-    if (c.financeCo && inv.saleType === "finance") bullets.push(`${c.financeCo.name} fee: ${m(c.financeCo.defaultFee * inv.salesAmount)} + admin fee ${m(c.financeCo.adminFee)}.`);
-    if (dealerFeeVal > 0) bullets.push(`Finance Bank Dealer Fee: ${m(dealerFeeVal)}.`);
-    if (ccpfVal > 0) bullets.push(`Credit Card Processing Fee (${pct(inv.ccpfPercent ?? 0.035)}): ${m(ccpfVal)}.`);
-    if (adminFeeVal > 0) bullets.push(`Admin Fee at ${pct(inv.adminFeePercent || 0)}: ${m(adminFeeVal)}.`);
-    if (inv.charges.length) inv.charges.forEach((ch) => bullets.push(`Extra charge — ${ch.label || "charge"}: ${m(ch.amount)}.`));
-    if (inv.credits.length) inv.credits.forEach((cr) => bullets.push(`Credit added — ${cr.label || "credit"}: ${m(cr.amount)}.`));
-    bullets.push(`Final profit was ${m(c.profit)}.`);
+    bullets.push(`You sold ${inv.customerName ? `to ${inv.customerName}` : "this deal"} for ${m(inv.salesAmount)}.`);
+    if (inv.productCost) bullets.push(`The product cost was ${m(inv.productCost)}, which was deducted from the profit.`);
+    if (c.financeCo && inv.saleType === "finance") {
+      bullets.push(`${c.financeCo.name} approved ${pct(inv.approvalPercent)} of the sale — ${m(c.approvalAmount)} approved.`);
+      const feeTotal = c.financeCo.defaultFee * inv.salesAmount + c.financeCo.adminFee;
+      if (feeTotal > 0) bullets.push(`The lender charged a combined fee of ${m(feeTotal)}.`);
+    } else if (inv.approvalPercent < 1) {
+      bullets.push(`${pct(inv.approvalPercent)} of the sale was approved — ${m(c.approvalAmount)}.`);
+    }
+    if (dealerFeeVal > 0) bullets.push(`A dealer fee of ${m(dealerFeeVal)} was applied.`);
+    if (adminFeeVal > 0) bullets.push(`An admin fee of ${pct(inv.adminFeePercent || 0)} was applied, totaling ${m(adminFeeVal)}.`);
+    if (ccpfVal > 0) bullets.push(`A ${pct(inv.ccpfPercent ?? 0.035)} credit card processing fee was added: ${m(ccpfVal)}.`);
+    if (inv.discount) bullets.push(`A discount of ${m(inv.discount)} was applied to the sale.`);
+    if (inv.charges.length) inv.charges.forEach((ch) => bullets.push(`The charge "${ch.label || "extra charge"}" was added for ${m(ch.amount)}.`));
+    if (inv.credits.length) inv.credits.forEach((cr) => bullets.push(`A credit "${cr.label || "credit"}" of ${m(cr.amount)} was added in your favor.`));
+    bullets.push(`After all charges and deductions, the final profit was ${m(c.profit)}.`);
   }
 
   return (
@@ -470,16 +503,16 @@ export function ExplainDialog({
 
         <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
           {/* Greeting */}
-          <p className="text-sm font-medium">
+          <p className="text-sm font-medium text-foreground/80">
             {isEs
-              ? `Hola ${repName}, aquí está el resumen de cómo calculamos tu comisión.`
-              : `Hi ${repName}, here's how we calculated your commission.`}
+              ? `Hola ${repName}, aquí te explico cómo calculamos tu comisión para esta venta.`
+              : `Hi ${repName}, here's a breakdown of how we calculated your commission for this deal.`}
           </p>
 
           {/* Bullet breakdown */}
-          <ul className="space-y-1.5 text-sm">
+          <ul className="space-y-2 text-sm">
             {bullets.map((b, i) => (
-              <li key={i} className="flex gap-2">
+              <li key={i} className="flex gap-2 leading-snug">
                 <span className="text-accent mt-0.5 shrink-0">•</span>
                 <span>{b}</span>
               </li>
@@ -488,38 +521,43 @@ export function ExplainDialog({
 
           {/* Commission summary box */}
           {payout && effectiveRate !== null && (
-            <div className="rounded-xl bg-muted/50 border border-border p-4 space-y-2 text-sm">
+            <div className="rounded-xl bg-accent/5 border border-accent/20 p-4 space-y-2 text-sm">
+              <p className="font-medium text-accent">
+                {isEs ? "Tu comisión" : "Your commission"}
+              </p>
               <p>
                 {isEs
-                  ? `Como tu posición es ${inv.commissionLevel || ag?.level || "—"} (${pct(effectiveRate)}), tu comisión personal fue:`
-                  : `As your position is ${inv.commissionLevel || ag?.level || "—"} (${pct(effectiveRate)}), your personal commission was:`}
-                {" "}<span className="font-bold text-accent">{m(payout.personalCommission)}</span>
+                  ? `Tu nivel de compensación es ${inv.commissionLevel || ag?.level || "—"} (${pct(effectiveRate)}), así que tu comisión personal sobre el profit es:`
+                  : `Your compensation level is ${inv.commissionLevel || ag?.level || "—"} (${pct(effectiveRate)}), so your personal commission on the profit is:`}
+                {" "}<span className="font-bold text-accent text-base">{m(payout.personalCommission)}</span>
               </p>
               {payout.overrideTotal > 0 && (
                 <p>
-                  {isEs ? "Override de tu downline:" : "Downline override:"}{" "}
-                  <span className="font-semibold">{m(payout.overrideTotal)}</span>
+                  {isEs
+                    ? `Además, como tienes reps en tu downline, ganaste un override adicional de ${m(payout.overrideTotal)}.`
+                    : `You also earned a ${m(payout.overrideTotal)} downline override from your team.`}
                 </p>
               )}
               {inv.advanceApplied ? (
                 <p>
-                  {isEs ? "Se descontó un advance de:" : "Advance deducted:"}{" "}
-                  <span className="font-semibold text-destructive">− {m(inv.advanceApplied)}</span>
+                  {isEs
+                    ? `Se descontó un advance que ya recibiste de ${m(inv.advanceApplied)}.`
+                    : `An advance you already received of ${m(inv.advanceApplied)} was deducted.`}
+                  {" "}<span className="text-destructive font-semibold">− {m(inv.advanceApplied)}</span>
                 </p>
               ) : null}
               {reservePct > 0 && (
                 <p>
                   {isEs
-                    ? `Como tienes configurada una reserva del ${pct(reservePct)}, recomendamos apartar:`
-                    : `With a ${pct(reservePct)} tax reserve configured, we suggest setting aside:`}
-                  {" "}<span className="font-semibold">{m(reserveAmt)}</span>
+                    ? `Recomendamos apartar el ${pct(reservePct)} para impuestos, que serían ${m(reserveAmt)}.`
+                    : `We recommend setting aside ${pct(reservePct)} for taxes — that's ${m(reserveAmt)}.`}
                 </p>
               )}
-              <div className="border-t border-border pt-2">
+              <div className="border-t border-accent/20 pt-3 flex items-center justify-between">
                 <p className="font-semibold">
-                  {isEs ? "Tu pago estimado sería:" : "Your estimated payout:"}{" "}
-                  <span className="text-accent">{m(finalAmt ?? 0)}</span>
+                  {isEs ? "Tu pago estimado:" : "Your estimated payout:"}
                 </p>
+                <span className="text-xl font-bold text-accent">{m(finalAmt ?? 0)}</span>
               </div>
             </div>
           )}
@@ -578,6 +616,26 @@ export function DisputeDialog({
   const [notes, setNotes] = useState("");
   const [field, setField] = useState<string>("");
   const [toValue, setToValue] = useState("");
+  const [attachment, setAttachment] = useState<{ url: string; name: string; isImage: boolean } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = useCallback((file: File) => {
+    if (!file) return;
+    const isImage = file.type.startsWith("image/");
+    const isPdf = file.type === "application/pdf";
+    if (!isImage && !isPdf) {
+      toast.error("Only images and PDF files are supported.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const url = e.target?.result as string;
+      setAttachment({ url, name: file.name, isImage });
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
   if (!inv) return null;
 
   const FIELD_OPTIONS: { value: keyof Invoice | ""; label: string }[] = [
@@ -610,6 +668,7 @@ export function DisputeDialog({
       kind,
       priority,
       requestedChange,
+      attachmentUrl: attachment?.url,
     });
     toast.success(t("disp_submitted"));
     setReason("");
@@ -618,6 +677,7 @@ export function DisputeDialog({
     setToValue("");
     setKind("correction");
     setPriority("normal");
+    setAttachment(null);
     onClose();
   };
 
@@ -699,6 +759,68 @@ export function DisputeDialog({
               onChange={(e) => setNotes(e.target.value)}
               placeholder={t("disp_notes_placeholder")}
             />
+          </div>
+
+          {/* File attachment */}
+          <div>
+            <Label>Attachment <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+                e.target.value = "";
+              }}
+            />
+            {!attachment ? (
+              <div
+                className={cn(
+                  "mt-1 flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-4 py-5 text-sm cursor-pointer transition-colors",
+                  dragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50 hover:bg-muted/40"
+                )}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleFile(f);
+                }}
+              >
+                <Paperclip className="w-5 h-5 text-muted-foreground" />
+                <span className="text-muted-foreground">Click or drag to attach an image or PDF</span>
+              </div>
+            ) : (
+              <div className="mt-1 flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                {attachment.isImage ? (
+                  <img
+                    src={attachment.url}
+                    alt={attachment.name}
+                    className="h-12 w-12 rounded object-cover border border-border shrink-0"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 shrink-0">
+                    <span className="text-xs font-bold text-red-600 dark:text-red-400">PDF</span>
+                  </div>
+                )}
+                <span className="flex-1 min-w-0 text-sm truncate">{attachment.name}</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 shrink-0"
+                  onClick={() => setAttachment(null)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -953,39 +1075,95 @@ function ApprovalsQueuePanel() {
               d.status === "submitted" ||
               d.status === "under_review" ||
               d.status === "needs_info";
+            const agName = ag?.name || "—";
             return (
               <Card key={d.id} className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                {/* Card header: avatar + rep info + badges */}
+                <div className="flex items-start gap-3">
+                  {/* Avatar initials circle */}
+                  <div
+                    style={{ background: nameToColor(agName), width: 40, height: 40, flexShrink: 0 }}
+                    className="rounded-full flex items-center justify-center text-white font-semibold text-sm select-none"
+                    title={agName}
+                  >
+                    {getInitials(agName)}
+                  </div>
+
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-mono text-xs">{inv?.number || "—"}</span>
-                      <Badge variant={statusVariant(d.status)}>{STATUS_LABEL[d.status]}</Badge>
-                      <Badge variant={priorityVariant(d.priority)}>
+                    {/* Top row: name, invoice #, badges */}
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className="font-semibold text-sm">{agName}</span>
+                      <span className="text-muted-foreground text-xs">·</span>
+                      <span className="font-mono text-xs text-muted-foreground">{inv?.number || "—"}</span>
+
+                      {/* Priority badge — explicit colors */}
+                      <span className={cn(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+                        d.priority === "high"
+                          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          : d.priority === "low"
+                          ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      )}>
                         {PRIORITY_LABEL[d.priority]}
-                      </Badge>
-                      <Badge variant="outline">{KIND_LABEL[d.kind]}</Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {ag?.name || "—"} · {ageDays}d old
-                        {assignee && <> · 👤 {assignee.name}</>}
+                      </span>
+
+                      {/* Status badge */}
+                      <Badge variant={statusVariant(d.status)}>{STATUS_LABEL[d.status]}</Badge>
+
+                      {/* Kind badge */}
+                      <Badge variant="outline" className="text-xs">{KIND_LABEL[d.kind]}</Badge>
+
+                      {/* Date + age — pushed to the right */}
+                      <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">
+                        {fmtDate(d.createdAt)}
+                        {ageDays > 0 && <> · {ageDays}d</>}
                       </span>
                     </div>
-                    <div className="font-medium">{d.reason}</div>
-                    {d.notes && (
-                      <p className="text-sm text-muted-foreground mt-1">{d.notes}</p>
+
+                    {/* Assignee */}
+                    {assignee && (
+                      <p className="text-xs text-muted-foreground mb-1">Assigned to {assignee.name}</p>
                     )}
+
+                    {/* Reason (truncated) */}
+                    <p className="font-medium text-sm line-clamp-2">{d.reason}</p>
+
+                    {/* Notes (truncated) */}
+                    {d.notes && (
+                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{d.notes}</p>
+                    )}
+
+                    {/* Attachment preview */}
+                    {d.attachmentUrl && (
+                      <div className="mt-2">
+                        {d.attachmentUrl.startsWith("data:image") ? (
+                          <img
+                            src={d.attachmentUrl}
+                            alt="attachment"
+                            className="h-16 rounded border border-border object-cover"
+                          />
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs">
+                            <Paperclip className="w-3 h-3" /> PDF attachment
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Requested change */}
                     {d.requestedChange && (
-                      <p className="text-xs mt-1">
-                        <span className="text-muted-foreground">{t("disp_suggested")}</span>{" "}
-                        <span className="font-mono">{d.requestedChange.field}</span>{" "}
-                        <span className="text-muted-foreground">
-                          {d.requestedChange.fromValue}
-                        </span>{" "}
-                        → <span className="font-medium">{d.requestedChange.toValue}</span>
+                      <p className="text-xs mt-2 flex items-center gap-1 flex-wrap">
+                        <span className="text-muted-foreground">{t("disp_suggested")}</span>
+                        <span className="font-mono bg-muted rounded px-1">{d.requestedChange.field}</span>
+                        <span className="text-muted-foreground">{d.requestedChange.fromValue}</span>
+                        <span>→</span>
+                        <span className="font-medium">{d.requestedChange.toValue}</span>
                         {inv && (
                           <Button
                             variant="link"
                             size="sm"
-                            className="h-auto px-2 py-0"
+                            className="h-auto px-1 py-0 text-xs"
                             onClick={() => {
                               const f = d.requestedChange!.field as keyof Invoice;
                               const num = ["salesAmount", "productCost", "approvalPercent", "discount"];
@@ -1005,23 +1183,23 @@ function ApprovalsQueuePanel() {
                         )}
                       </p>
                     )}
+
+                    {/* Admin notes textarea */}
                     <Textarea
                       className="mt-2"
                       placeholder={t("disp_admin_notes_placeholder")}
                       rows={2}
                       value={d.adminNotes}
-                      onChange={(e) =>
-                        s.updateDispute(d.id, { adminNotes: e.target.value })
-                      }
+                      onChange={(e) => s.updateDispute(d.id, { adminNotes: e.target.value })}
                     />
+
+                    {/* Needs info reply */}
                     {d.status === "needs_info" && (
                       <div className="mt-2 flex gap-2">
                         <Input
                           placeholder={t("disp_msg_placeholder")}
                           value={adminMsg[d.id] ?? ""}
-                          onChange={(e) =>
-                            setAdminMsg((p) => ({ ...p, [d.id]: e.target.value }))
-                          }
+                          onChange={(e) => setAdminMsg((p) => ({ ...p, [d.id]: e.target.value }))}
                         />
                         <Button
                           size="sm"
@@ -1037,93 +1215,91 @@ function ApprovalsQueuePanel() {
                         </Button>
                       </div>
                     )}
+
                     <RequestTimeline events={d.events} agents={s.agents} />
-                  </div>
-                  <div className="flex flex-col gap-2 w-44 shrink-0">
-                    {d.status === "submitted" && (
+
+                    {/* Inline action buttons */}
+                    <div className="flex items-center flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
+                      {d.status === "submitted" && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            s.claimRequest(d.id, s.activeAgentId);
+                            toast.success(t("disp_claimed"));
+                          }}
+                        >
+                          {t("disp_claim")}
+                        </Button>
+                      )}
+                      {isOpen && d.status !== "needs_info" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            s.setRequestStatus(d.id, "needs_info", "admin", t("disp_needs_info"));
+                            toast(t("disp_marked_needs_info"));
+                          }}
+                        >
+                          {t("disp_request_info")}
+                        </Button>
+                      )}
                       <Button
                         size="sm"
-                        variant="secondary"
+                        className="bg-green-600 hover:bg-green-700 text-white"
                         onClick={() => {
-                          s.claimRequest(d.id, s.activeAgentId);
-                          toast.success(t("disp_claimed"));
+                          s.setRequestStatus(d.id, "approved", "admin", d.adminNotes || "");
+                          toast.success(t("disp_approved_toast"));
                         }}
+                        disabled={d.status === "approved"}
                       >
-                        {t("disp_claim")}
+                        {t("um_approve")}
                       </Button>
-                    )}
-                    {isOpen && d.status !== "needs_info" && (
                       <Button
                         size="sm"
                         variant="outline"
+                        className="border-red-300 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
                         onClick={() => {
-                          s.setRequestStatus(
-                            d.id,
-                            "needs_info",
-                            "admin",
-                            t("disp_needs_info")
-                          );
-                          toast(t("disp_marked_needs_info"));
+                          s.setRequestStatus(d.id, "rejected", "admin", d.adminNotes || "");
+                          toast(t("disp_rejected_toast"));
                         }}
+                        disabled={d.status === "rejected"}
                       >
-                        {t("disp_request_info")}
+                        {t("um_reject")}
                       </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        s.setRequestStatus(d.id, "approved", "admin", d.adminNotes || "");
-                        toast.success(t("disp_approved_toast"));
-                      }}
-                      disabled={d.status === "approved"}
-                    >
-                      {t("um_approve")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        s.setRequestStatus(d.id, "rejected", "admin", d.adminNotes || "");
-                        toast(t("disp_rejected_toast"));
-                      }}
-                      disabled={d.status === "rejected"}
-                    >
-                      {t("um_reject")}
-                    </Button>
-                    {(d.status === "approved" || d.status === "rejected") && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          s.setRequestStatus(d.id, "resolved", "admin", t("disp_closed"));
-                          toast.success(t("disp_resolved"));
-                        }}
-                      >
-                        {t("disp_mark_resolved")}
-                      </Button>
-                    )}
-                    {inv && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          const c = calcInvoice(inv, s.financeCompanies);
-                          const doc = buildSaleInvoicePDF(c, s.company, ag?.name || "—");
-                          doc.save(`${inv.number}_recalculated.pdf`);
-                          toast.success(t("disp_pdf_regen"));
-                        }}
-                      >
-                        <FileDown className="w-4 h-4 mr-1" />
-                        PDF
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => s.removeDispute(d.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                      {(d.status === "approved" || d.status === "rejected") && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            s.setRequestStatus(d.id, "resolved", "admin", t("disp_closed"));
+                            toast.success(t("disp_resolved"));
+                          }}
+                        >
+                          {t("disp_mark_resolved")}
+                        </Button>
+                      )}
+                      <div className="ml-auto flex items-center gap-1">
+                        {inv && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              const c = calcInvoice(inv, s.financeCompanies);
+                              const doc = buildSaleInvoicePDF(c, s.company, agName);
+                              doc.save(`${inv.number}_recalculated.pdf`);
+                              toast.success(t("disp_pdf_regen"));
+                            }}
+                          >
+                            <FileDown className="w-4 h-4 mr-1" />
+                            PDF
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => s.removeDispute(d.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>

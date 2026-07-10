@@ -13,6 +13,7 @@ export interface Profile {
   is_superadmin: boolean;
   status: UserStatus;
   company_id: string | null;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -31,6 +32,7 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   switchCompany: (companyId: string) => Promise<void>;
+  updateAvatar: (avatarUrl: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -96,6 +98,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error) await fetchAll(user.id);
   }
 
+  async function updateAvatar(avatarUrl: string) {
+    if (!user) return;
+    await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
+    setProfile((p) => p ? { ...p, avatar_url: avatarUrl } : p);
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     setUser(null);
@@ -105,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, companiesList, loading, signOut, refreshProfile, switchCompany }}>
+    <AuthContext.Provider value={{ user, profile, companiesList, loading, signOut, refreshProfile, switchCompany, updateAvatar }}>
       {children}
     </AuthContext.Provider>
   );

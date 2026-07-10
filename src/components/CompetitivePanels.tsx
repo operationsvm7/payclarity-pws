@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,10 +9,11 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Trash2, Wand2, Upload, CheckCircle2, ArrowRight, ArrowLeft, Settings2, Sparkles, FileDown } from "lucide-react";
-import { useStore, type AdjustmentKind, type Invoice } from "@/lib/commission-store";
-import { fmtMoney, calcInvoice } from "@/lib/commission-calc";
-import { labelFor } from "@/lib/ledger";
+import { useStore, type AdjustmentKind, type Adjustment, type Invoice } from "@/lib/commission-store";
+import { fmtMoney, calcInvoice, calcPayouts } from "@/lib/commission-calc";
+import { labelFor, buildWallet } from "@/lib/ledger";
 import { INVOICE_TEMPLATES, buildSaleAndDownload } from "@/lib/generate-invoices";
+import { INDUSTRY_TEMPLATES } from "@/lib/templates";
 import { useT } from "@/lib/i18n";
 
 /* ===================================================================
@@ -49,6 +50,29 @@ export function AdjustmentsPanel() {
     date: new Date().toISOString().slice(0, 10),
     note: "",
   });
+
+  const preview = useMemo(() => {
+    if (!form.agentId || !form.amount || form.amount <= 0) return null;
+    const agent = s.agents.find((a) => a.id === form.agentId);
+    if (!agent) return null;
+    const payouts = calcPayouts(s.agents, s.invoices, s.financeCompanies, s.personalTiers, s.overrides);
+    const payout = payouts.find((p) => p.agent.id === agent.id);
+    if (!payout) return null;
+    const before = buildWallet(agent, payout, s.payments, s.disputes, s.adjustments);
+    const simAdj: Adjustment = {
+      id: "__preview__",
+      agentId: agent.id,
+      invoiceId: null,
+      kind: form.kind,
+      amount: Number(form.amount),
+      date: form.date,
+      note: "",
+      createdBy: "admin",
+      createdAt: new Date().toISOString(),
+    };
+    const after = buildWallet(agent, payout, s.payments, s.disputes, [...s.adjustments, simAdj]);
+    return { before: before.pendingBalance, after: after.pendingBalance };
+  }, [form.agentId, form.amount, form.kind, form.date, s.agents, s.invoices, s.payments, s.disputes, s.adjustments, s.financeCompanies, s.personalTiers, s.overrides]);
 
   if (!isAdmin) {
     return (
@@ -143,6 +167,31 @@ export function AdjustmentsPanel() {
           <Input value={form.note} placeholder={t("adj_note_placeholder")}
             onChange={(e) => setForm({ ...form, note: e.target.value })} />
         </div>
+        {preview && (
+          <div className="md:col-span-6 flex flex-wrap items-center gap-3 px-3 py-2.5 bg-background border rounded-md text-sm">
+            <span className="text-muted-foreground font-medium text-xs uppercase tracking-wide">Before / After</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">Before</span>
+              <span className="font-mono font-medium">{fmtMoney(preview.before, s.company.currency)}</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground">After</span>
+              <span className={`font-mono font-semibold ${preview.after > preview.before ? "text-emerald-600 dark:text-emerald-400" : preview.after < preview.before ? "text-red-500" : "text-foreground"}`}>
+                {fmtMoney(preview.after, s.company.currency)}
+              </span>
+            </div>
+            <span className={`ml-auto text-xs px-2 py-0.5 rounded font-mono ${
+              preview.after > preview.before
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : preview.after < preview.before
+                ? "bg-red-500/10 text-red-600"
+                : "bg-muted text-muted-foreground"
+            }`}>
+              {preview.after > preview.before ? "+" : ""}{fmtMoney(preview.after - preview.before, s.company.currency)}
+            </span>
+          </div>
+        )}
         <div className="md:col-span-6">
           <Button onClick={submit}><Plus className="w-4 h-4 mr-2" />{t("adj_post")}</Button>
         </div>
@@ -386,6 +435,7 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
   const [financeDraft, setFinanceDraft] = useState({ name: "", defaultFee: 0.05, dealerFee: 0, adminFee: 0 });
   const [tierRate, setTierRate] = useState(8);
   const [ovRate, setOvRate] = useState(2);
+  const [selectedKit, setSelectedKit] = useState<string | null>(null);
 
   const STEPS = [
     t("wiz_step_company"),
@@ -526,6 +576,41 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* ── Industry Launch Kits ── */}
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Label>Industry Launch Kits</Label>
+                <span className="text-xs text-muted-foreground">
+                  {es ? "Opcional — carga tiers, overrides y finanzas de tu industria" : "Optional — loads tiers, overrides & finance defaults for your industry"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                {INDUSTRY_TEMPLATES.map((tpl) => {
+                  const isSelected = selectedKit === tpl.id;
+                  return (
+                    <button
+                      key={tpl.id}
+                      onClick={() => {
+                        s.applyTemplate(tpl);
+                        setSelectedKit(tpl.id);
+                        toast.success(es ? `Kit "${tpl.name}" aplicado` : `${tpl.name} kit applied`);
+                      }}
+                      className={`flex flex-col items-start gap-1 p-3 rounded-xl border-2 text-left transition-all hover:shadow-sm ${isSelected ? "border-accent bg-sky-50 ring-2 ring-accent/20" : "border-border hover:border-sky-300"}`}
+                    >
+                      <span className="text-2xl leading-none select-none">{tpl.emoji ?? "🏢"}</span>
+                      <span className="text-xs font-semibold text-foreground leading-snug">{tpl.name}</span>
+                      <span className="text-[10px] text-muted-foreground leading-snug line-clamp-2">{tpl.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedKit && (
+                <p className="text-xs text-accent mt-1.5">
+                  ✓ {es ? "Kit aplicado — ajusta en Compensación si lo necesitas." : "Kit applied — fine-tune in Compensation if needed."}
+                </p>
+              )}
             </div>
           </div>
         )}

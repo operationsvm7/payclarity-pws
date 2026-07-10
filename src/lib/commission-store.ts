@@ -14,6 +14,7 @@ export type Agent = {
   taxReservePercent?: number;
   commissionPercent?: number; // default personal commission rate (e.g. 0.08 = 8%)
   level?: string;             // commission level label (e.g. Junior Rep, Sales Rep, Manager)
+  avatarUrl?: string;         // base64 or URL for profile photo
 };
 
 export type FinanceCompany = {
@@ -270,12 +271,14 @@ export type Dispute = {
   events: RequestEvent[];
   createdAt: string;
   resolvedAt: string | null;
+  attachmentUrl?: string;
 };
 
 export type IndustryTemplate = {
   id: string;
   name: string;
   description: string;
+  emoji?: string;
   charges: LineItem[];
   finance: Omit<FinanceCompany, "id" | "active"> | null;
   tiers: PersonalTier[];
@@ -358,6 +361,10 @@ type State = {
   taxReserveByState: Record<string, number>;
   language: Lang;
   setLanguage: (l: Lang) => void;
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+  dashboardWidgets: string[];
+  setDashboardWidgets: (order: string[]) => void;
   setTaxReserveByState: (m: Record<string, number>) => void;
 
   role: Role;
@@ -812,6 +819,10 @@ export const useStore = create<State>()(
       taxReserveByState: {},
       language: "es" as Lang,
       setLanguage: (language) => set({ language }),
+      theme: "light" as "light" | "dark",
+      toggleTheme: () => set((s) => ({ theme: s.theme === "light" ? "dark" : "light" })),
+      dashboardWidgets: ["kpis", "top_reps", "recent_invoices"],
+      setDashboardWidgets: (dashboardWidgets) => set({ dashboardWidgets }),
       setTaxReserveByState: (taxReserveByState) => set({ taxReserveByState }),
 
       role: "admin" as Role,
@@ -823,7 +834,22 @@ export const useStore = create<State>()(
 
       addAgent: (a) => set((s) => ({ agents: [...s.agents, { ...a, id: uid() }] })),
       updateAgent: (id, a) =>
-        set((s) => ({ agents: s.agents.map((x) => (x.id === id ? { ...x, ...a } : x)) })),
+        set((s) => {
+          const prev = s.agents.find((x) => x.id === id);
+          const newNotifs: Notification[] = [];
+          if (prev && a.w9Status && a.w9Status !== prev.w9Status && a.w9Status === "valid") {
+            newNotifs.push({
+              id: uid(), at: new Date().toISOString(), read: false,
+              title: `W-9 completado`,
+              message: `${prev.name} entregó su W-9 y está verificado.`,
+              kind: "info", audience: "admin",
+            });
+          }
+          return {
+            agents: s.agents.map((x) => (x.id === id ? { ...x, ...a } : x)),
+            notifications: [...s.notifications, ...newNotifs],
+          };
+        }),
       removeAgent: (id) =>
         set((s) => ({
           agents: s.agents.filter((x) => x.id !== id).map((x) =>
@@ -838,7 +864,15 @@ export const useStore = create<State>()(
 
       addFinanceCo: (f) => {
         const id = uid();
-        set((s) => ({ financeCompanies: [...s.financeCompanies, { ...f, id }] }));
+        set((s) => ({
+          financeCompanies: [...s.financeCompanies, { ...f, id }],
+          notifications: [...s.notifications, {
+            id: uid(), at: new Date().toISOString(), read: false,
+            title: "Nueva empresa financiera",
+            message: `${f.name} fue agregada como opción de financiamiento.`,
+            kind: "info" as const, audience: "admin" as const,
+          }],
+        }));
         return id;
       },
       updateFinanceCo: (id, f) =>
@@ -855,7 +889,22 @@ export const useStore = create<State>()(
         return id;
       },
       updateInvoice: (id, i) =>
-        set((s) => ({ invoices: s.invoices.map((x) => (x.id === id ? { ...x, ...i } : x)) })),
+        set((s) => {
+          const prev = s.invoices.find((x) => x.id === id);
+          const newNotifs: Notification[] = [];
+          if (prev && i.status && i.status !== prev.status && i.status === "approved") {
+            newNotifs.push({
+              id: uid(), at: new Date().toISOString(), read: false,
+              title: "Invoice aprobada",
+              message: `La invoice ${prev.number}${prev.customerName ? ` (${prev.customerName})` : ""} fue aprobada.`,
+              kind: "info" as const, audience: "admin" as const,
+            });
+          }
+          return {
+            invoices: s.invoices.map((x) => (x.id === id ? { ...x, ...i } : x)),
+            notifications: [...s.notifications, ...newNotifs],
+          };
+        }),
       removeInvoice: (id) =>
         set((s) => ({
           invoices: s.invoices.filter((x) => x.id !== id),
@@ -863,7 +912,22 @@ export const useStore = create<State>()(
           adjustments: s.adjustments.filter((x) => x.invoiceId !== id),
         })),
 
-      addPayment: (p) => set((s) => ({ payments: [...s.payments, { ...p, id: uid() }] })),
+      addPayment: (p) => set((s) => {
+        const agentName = s.agents.find((a) => a.id === p.agentId)?.name ?? "Un rep";
+        return {
+          payments: [...s.payments, { ...p, id: uid() }],
+          notifications: [...s.notifications, {
+            id: uid(), at: new Date().toISOString(), read: false,
+            title: "Pago programado",
+            message: `Se programó un pago de ${
+              typeof p.amount === "number"
+                ? "$" + p.amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : p.amount
+            } para ${agentName}.`,
+            kind: "info" as const, audience: "admin" as const,
+          }],
+        };
+      }),
       removePayment: (id) => set((s) => ({ payments: s.payments.filter((x) => x.id !== id) })),
 
       addDispute: (d) => {
@@ -896,6 +960,7 @@ export const useStore = create<State>()(
                 events: [ev],
                 createdAt: now,
                 resolvedAt: null,
+                attachmentUrl: d.attachmentUrl,
               },
             ],
             notifications: [

@@ -1,14 +1,43 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, type CSSProperties } from "react";
+import { GripVertical } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileDown, AlertTriangle } from "lucide-react";
+import { FileDown, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useStore } from "@/lib/commission-store";
 import { calcInvoice, calcPayouts, fmtMoney } from "@/lib/commission-calc";
 import { buildAllWallets } from "@/lib/ledger";
 import { useT } from "@/lib/i18n";
+
+const AVATAR_COLORS = [
+  "#4f46e5","#7c3aed","#db2777","#dc2626","#ea580c",
+  "#ca8a04","#16a34a","#0891b2","#0284c7","#9333ea",
+];
+function nameToColor(name: string) {
+  let h = 0;
+  for (const c of name) h = h * 31 + c.charCodeAt(0);
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+function getInitials(name: string) {
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+function AgentAvatar({ name, avatarUrl, size = 28 }: { name: string; avatarUrl?: string; size?: number }) {
+  const style: CSSProperties = { width: size, height: size, flexShrink: 0 };
+  if (avatarUrl) {
+    return (
+      <div style={style} className="rounded-full overflow-hidden border border-border/40">
+        <img src={avatarUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ ...style, background: nameToColor(name) }} className="rounded-full flex items-center justify-center text-white font-semibold">
+      <span style={{ fontSize: size * 0.38 }}>{getInitials(name)}</span>
+    </div>
+  );
+}
 
 function downloadCSV(filename: string, rows: (string | number)[][]) {
   const csv = rows
@@ -28,10 +57,28 @@ function downloadCSV(filename: string, rows: (string | number)[][]) {
 }
 
 /* -------------------- DASHBOARD -------------------- */
-export function DashboardPanel() {
+const DEFAULT_WIDGETS = ["kpis", "top_reps", "recent_invoices"];
+
+export function DashboardPanel({ profileAvatars = {} }: { profileAvatars?: Record<string, string> }) {
   const t = useT();
   const s = useStore();
   const cur = s.company.currency;
+  const widgets = (s.dashboardWidgets?.length ? s.dashboardWidgets : DEFAULT_WIDGETS);
+
+  // Drag state
+  const dragIdx = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  function onDragStart(i: number) { dragIdx.current = i; }
+  function onDrop(i: number) {
+    if (dragIdx.current === null || dragIdx.current === i) return;
+    const next = [...widgets];
+    const [moved] = next.splice(dragIdx.current, 1);
+    next.splice(i, 0, moved);
+    s.setDashboardWidgets(next);
+    dragIdx.current = null;
+    setDragOver(null);
+  }
 
   const totals = useMemo(() => {
     let sales = 0, profit = 0;
@@ -53,49 +100,67 @@ export function DashboardPanel() {
   const topReps = [...totals.payouts]
     .sort((a, b) => (b.personalCommission + b.overrideTotal) - (a.personalCommission + a.overrideTotal))
     .slice(0, 5);
-
   const recent = [...s.invoices].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
 
-  return (
-    <div className="space-y-6">
-      <Card className="p-6 shadow-card">
-        <h2 className="text-lg font-semibold mb-4">{t("dash_overview")}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi label={t("dash_kpi_sales")} value={fmtMoney(totals.sales, cur)} />
-          <Kpi label={t("dash_kpi_profit")} value={fmtMoney(totals.profit, cur)} />
-          <Kpi label={t("dash_kpi_commissions")} value={fmtMoney(totals.commissions, cur)} />
-          <Kpi label={t("dash_kpi_overrides")} value={fmtMoney(totals.overridesTotal, cur)} />
-          <Kpi label={t("dash_kpi_paid")} value={fmtMoney(totals.paid, cur)} />
-          <Kpi label={t("dash_kpi_pending")} value={fmtMoney(totals.pending, cur)} accent />
-          <Kpi label={t("dash_kpi_tax_reserve")} value={fmtMoney(totals.tax, cur)} />
-          <Kpi label={t("dash_kpi_open_requests")} value={String(totals.openReq)} />
-        </div>
-      </Card>
+  function renderWidget(id: string, i: number) {
+    const isDragTarget = dragOver === i;
+    const wrapCls = `transition-all ${isDragTarget ? "ring-2 ring-accent ring-offset-1 rounded-2xl" : ""}`;
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    if (id === "kpis") return (
+      <div key={id} draggable onDragStart={() => onDragStart(i)} onDragOver={(e) => { e.preventDefault(); setDragOver(i); }} onDrop={() => onDrop(i)} onDragLeave={() => setDragOver(null)} className={wrapCls}>
         <Card className="p-6 shadow-card">
-          <h3 className="font-semibold mb-3">{t("dash_top_reps")}</h3>
-          {topReps.length === 0 ? (
-            <p className="text-sm text-muted-foreground">—</p>
-          ) : (
-            <table className="w-full text-sm">
-              <tbody>
-                {topReps.map((p) => (
-                  <tr key={p.agent.id} className="border-t border-border/60">
-                    <td className="py-2">{p.agent.name}</td>
-                    <td className="text-right font-mono">{fmtMoney(p.personalCommission + p.overrideTotal, cur)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">{t("dash_overview")}</h2>
+            <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Kpi label={t("dash_kpi_sales")} value={fmtMoney(totals.sales, cur)} />
+            <Kpi label={t("dash_kpi_profit")} value={fmtMoney(totals.profit, cur)} />
+            <Kpi label={t("dash_kpi_commissions")} value={fmtMoney(totals.commissions, cur)} />
+            <Kpi label={t("dash_kpi_overrides")} value={fmtMoney(totals.overridesTotal, cur)} />
+            <Kpi label={t("dash_kpi_paid")} value={fmtMoney(totals.paid, cur)} />
+            <Kpi label={t("dash_kpi_pending")} value={fmtMoney(totals.pending, cur)} accent />
+            <Kpi label={t("dash_kpi_tax_reserve")} value={fmtMoney(totals.tax, cur)} />
+            <Kpi label={t("dash_kpi_open_requests")} value={String(totals.openReq)} />
+          </div>
+        </Card>
+      </div>
+    );
+
+    if (id === "top_reps") return (
+      <div key={id} draggable onDragStart={() => onDragStart(i)} onDragOver={(e) => { e.preventDefault(); setDragOver(i); }} onDrop={() => onDrop(i)} onDragLeave={() => setDragOver(null)} className={wrapCls}>
+        <Card className="p-6 shadow-card h-full">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">{t("dash_top_reps")}</h3>
+            <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+          </div>
+          {topReps.length === 0 ? <p className="text-sm text-muted-foreground">—</p> : (
+            <div className="space-y-1">
+              {topReps.map((p, idx) => (
+                <div key={p.agent.id} className="flex items-center gap-2 py-1.5 border-t border-border/60 first:border-t-0">
+                  <span className="text-xs text-muted-foreground w-4 text-center font-mono">{idx + 1}</span>
+                  <AgentAvatar name={p.agent.name} avatarUrl={profileAvatars[p.agent.email] ?? p.agent.avatarUrl} size={28} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{p.agent.name}</div>
+                    {p.agent.level && <div className="text-[10px] text-muted-foreground">{p.agent.level}</div>}
+                  </div>
+                  <div className="text-sm font-mono font-semibold">{fmtMoney(p.personalCommission + p.overrideTotal, cur)}</div>
+                </div>
+              ))}
+            </div>
           )}
         </Card>
+      </div>
+    );
 
-        <Card className="p-6 shadow-card">
-          <h3 className="font-semibold mb-3">{t("dash_recent_invoices")}</h3>
-          {recent.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("dash_no_invoices")}</p>
-          ) : (
+    if (id === "recent_invoices") return (
+      <div key={id} draggable onDragStart={() => onDragStart(i)} onDragOver={(e) => { e.preventDefault(); setDragOver(i); }} onDrop={() => onDrop(i)} onDragLeave={() => setDragOver(null)} className={wrapCls}>
+        <Card className="p-6 shadow-card h-full">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">{t("dash_recent_invoices")}</h3>
+            <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+          </div>
+          {recent.length === 0 ? <p className="text-sm text-muted-foreground">{t("dash_no_invoices")}</p> : (
             <table className="w-full text-sm">
               <tbody>
                 {recent.map((inv) => {
@@ -113,6 +178,24 @@ export function DashboardPanel() {
           )}
         </Card>
       </div>
+    );
+
+    return null;
+  }
+
+  // kpis spans full width; top_reps and recent_invoices go side by side
+  const sideWidgets = widgets.filter((w) => w !== "kpis");
+  const hasKpis = widgets.includes("kpis");
+  const kpisIdx = widgets.indexOf("kpis");
+
+  return (
+    <div className="space-y-6">
+      {hasKpis && renderWidget("kpis", kpisIdx)}
+      {sideWidgets.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {sideWidgets.map((id) => renderWidget(id, widgets.indexOf(id)))}
+        </div>
+      )}
     </div>
   );
 }
@@ -258,6 +341,15 @@ export function YearEnd1099Panel() {
     });
   }, [s.agents, s.invoices, s.payments, s.financeCompanies, s.personalTiers, s.overrides, year]);
 
+  const summary = useMemo(() => {
+    const need1099 = data.filter((r) => r.reportable >= 600);
+    return {
+      totalNeed: need1099.length,
+      ready: need1099.filter((r) => r.w9 === "valid").length,
+      missingW9: need1099.filter((r) => r.w9 !== "valid").length,
+    };
+  }, [data]);
+
   const exportCsv = () => {
     const rows: (string | number)[][] = [
       ["Year", "Contractor", "Email", "State", "W-9", "Total earned", "Total paid", "Advances paid", "Pending", "Reportable"],
@@ -294,6 +386,25 @@ export function YearEnd1099Panel() {
         </div>
       </div>
 
+      {data.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="inline-flex items-center gap-1.5 text-sm bg-muted/50 px-3 py-1.5 rounded-md">
+            <span className="font-semibold">{summary.totalNeed}</span>
+            <span className="text-muted-foreground">need 1099</span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 text-sm bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-md">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span className="font-semibold">{summary.ready}</span>
+            <span>Ready</span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 text-sm bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span className="font-semibold">{summary.missingW9}</span>
+            <span>Missing W-9</span>
+          </div>
+        </div>
+      )}
+
       {data.length === 0 ? (
         <p className="text-sm text-muted-foreground">—</p>
       ) : (
@@ -328,13 +439,19 @@ export function YearEnd1099Panel() {
                   <td className="text-right font-mono">{fmtMoney(r.advancesPaid, cur)}</td>
                   <td className="text-right font-mono">{fmtMoney(r.pending, cur)}</td>
                   <td className="text-right font-mono font-semibold">{fmtMoney(r.reportable, cur)}</td>
-                  <td>
-                    {r.warn ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                        <AlertTriangle className="w-3.5 h-3.5" /> {t("ye_warning_threshold")}
+                  <td className="pl-2">
+                    {r.reportable >= 600 && r.w9 === "valid" ? (
+                      <span className="inline-flex items-center gap-1 text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded">
+                        <CheckCircle2 className="w-3 h-3" /> Ready
+                      </span>
+                    ) : r.warn ? (
+                      <span className="inline-flex items-center gap-1 text-xs bg-amber-500/10 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded">
+                        <AlertTriangle className="w-3 h-3" /> Missing W-9
                       </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">ok</span>
+                      <span className="inline-flex items-center gap-1 text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">
+                        Under $600
+                      </span>
                     )}
                   </td>
                 </tr>
