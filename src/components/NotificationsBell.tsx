@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useStore, type Notification, type NotificationKind } from "@/lib/commission-store";
+import { useT } from "@/lib/i18n";
 
 type KindFilter = "all" | "submitted" | "replied" | "status" | "split" | "pdf";
 type SortOrder = "newest" | "oldest";
@@ -36,14 +37,16 @@ const INVOICE_KEY = "notifications.invoiceFilter";
 const SEARCH_KEY = "notifications.search";
 const UNREAD_KEY = "notifications.unreadOnly";
 
-const KIND_FILTERS: { value: KindFilter; label: string; kinds: NotificationKind[] }[] = [
-  { value: "all", label: "All", kinds: [] },
-  { value: "submitted", label: "Submitted", kinds: ["dispute_submitted"] },
-  { value: "replied", label: "Replied", kinds: ["dispute_replied"] },
-  { value: "status", label: "Status", kinds: ["dispute_status", "dispute_claimed"] },
-  { value: "split", label: "Splits", kinds: ["split_changed"] },
-  { value: "pdf", label: "PDFs", kinds: ["pdf_regenerated"] },
-];
+function getKindFilters(t: (k: any) => string) {
+  return [
+    { value: "all" as KindFilter, label: t("notif_filter_all"), kinds: [] as NotificationKind[] },
+    { value: "submitted" as KindFilter, label: t("notif_filter_submitted"), kinds: ["dispute_submitted"] as NotificationKind[] },
+    { value: "replied" as KindFilter, label: t("notif_filter_replied"), kinds: ["dispute_replied"] as NotificationKind[] },
+    { value: "status" as KindFilter, label: t("notif_filter_status"), kinds: ["dispute_status", "dispute_claimed"] as NotificationKind[] },
+    { value: "split" as KindFilter, label: t("notif_filter_splits"), kinds: ["split_changed"] as NotificationKind[] },
+    { value: "pdf" as KindFilter, label: t("notif_filter_pdfs"), kinds: ["pdf_regenerated"] as NotificationKind[] },
+  ];
+}
 
 function readLS<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -61,6 +64,8 @@ function writeLS(key: string, v: unknown) {
 }
 
 export function NotificationsBell() {
+  const t = useT();
+  const KIND_FILTERS = getKindFilters(t);
   const s = useStore();
   const [open, setOpen] = useState(false);
   const [kindFilter, setKindFilter] = useState<KindFilter>(() => readLS<KindFilter>(KIND_KEY, "all"));
@@ -213,12 +218,12 @@ export function NotificationsBell() {
     const snapshot = mine.filter((n) => ids.includes(n.id));
     s.removeNotifications(ids);
     setSelected(new Set());
-    toast.success(`Deleted ${ids.length} notification${ids.length === 1 ? "" : "s"}`, {
+    toast.success(t("notif_deleted"), {
       action: {
-        label: "Undo",
+        label: t("notif_undo"),
         onClick: () => {
           s.restoreNotifications(snapshot);
-          toast.success("Restored");
+          toast.success(t("notif_restored"));
         },
       },
       duration: 8000,
@@ -245,7 +250,7 @@ export function NotificationsBell() {
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="icon" className="relative" aria-label="Notifications">
+          <Button variant="outline" size="icon" className="relative" aria-label={t("notif_title")}>
             <Bell className="w-4 h-4" />
             {unread > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
@@ -256,21 +261,21 @@ export function NotificationsBell() {
         </PopoverTrigger>
         <PopoverContent align="end" className="w-[440px] p-0">
           <div className="flex items-center justify-between px-3 py-2 border-b">
-            <div className="text-sm font-semibold">Notifications</div>
+            <div className="text-sm font-semibold">{t("notif_title")}</div>
             <div className="flex items-center gap-1">
               <Button
                 size="sm"
                 variant="ghost"
                 className="h-7 px-2 text-xs"
                 onClick={() => setSortOrder((o) => (o === "newest" ? "oldest" : "newest"))}
-                title={sortOrder === "newest" ? "Newest first" : "Oldest first"}
+                title={sortOrder === "newest" ? t("notif_newest") : t("notif_oldest")}
               >
                 {sortOrder === "newest" ? (
                   <ArrowDownNarrowWide className="w-3 h-3 mr-1" />
                 ) : (
                   <ArrowUpNarrowWide className="w-3 h-3 mr-1" />
                 )}
-                {sortOrder === "newest" ? "Newest" : "Oldest"}
+                {sortOrder === "newest" ? t("notif_newest").split(" ")[0] : t("notif_oldest").split(" ")[0]}
               </Button>
               <Button
                 size="sm"
@@ -278,10 +283,10 @@ export function NotificationsBell() {
                 className="h-7 px-2 text-xs"
                 onClick={markAllVisibleRead}
                 disabled={unread === 0}
-                title="Mark all visible as read"
+                title={t("notif_mark_all")}
               >
                 <Check className="w-3 h-3 mr-1" />
-                Mark read
+                {t("notif_mark_read")}
               </Button>
               <Button
                 size="sm"
@@ -291,10 +296,10 @@ export function NotificationsBell() {
                   setConfirm({ ids: visibleIds, mode: "all" })
                 }
                 disabled={visibleIds.length === 0}
-                title={unreadOnly ? "Clear visible unread" : "Clear visible"}
+                title={unreadOnly ? t("notif_clear_visible") : t("notif_clear_all")}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
-                Clear
+                {t("notif_clear")}
               </Button>
             </div>
           </div>
@@ -304,7 +309,7 @@ export function NotificationsBell() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, invoice #, keyword…"
+                placeholder={t("notif_search")}
                 className="h-7 pl-7 text-xs"
               />
             </div>
@@ -340,10 +345,10 @@ export function NotificationsBell() {
                 variant={unreadOnly ? "default" : "outline"}
                 className="h-6 px-2 text-[11px] gap-1 ml-auto"
                 onClick={() => setUnreadOnly((v) => !v)}
-                title="Show unread only"
+                title={t("notif_unread_only")}
               >
                 <Eye className="w-3 h-3" />
-                Unread only
+                {t("notif_unread_only")}
               </Button>
             </div>
             <Select value={invoiceFilter} onValueChange={setInvoiceFilter}>
@@ -351,7 +356,7 @@ export function NotificationsBell() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All invoices</SelectItem>
+                <SelectItem value="all">{t("notif_all_invoices")}</SelectItem>
                 {invoiceOptions.map((o) => (
                   <SelectItem key={o.id} value={o.id}>
                     {o.number}
@@ -367,7 +372,7 @@ export function NotificationsBell() {
                   checked={allVisibleSelected}
                   onCheckedChange={toggleAllVisible}
                 />
-                {someSelected ? `${selected.size} selected` : "Select all"}
+                {someSelected ? `${selected.size} ${t("notif_selected")}` : t("notif_select_all")}
               </label>
               <div className="flex items-center gap-1">
                 <Button
@@ -377,7 +382,7 @@ export function NotificationsBell() {
                   onClick={bulkMarkRead}
                   disabled={!someSelected}
                 >
-                  <Check className="w-3 h-3 mr-1" /> Mark read
+                  <Check className="w-3 h-3 mr-1" /> {t("notif_mark_read")}
                 </Button>
                 <Button
                   size="sm"
@@ -388,7 +393,7 @@ export function NotificationsBell() {
                   }
                   disabled={!someSelected}
                 >
-                  <Trash2 className="w-3 h-3 mr-1" /> Delete
+                  <Trash2 className="w-3 h-3 mr-1" /> {t("notif_delete")}
                 </Button>
               </div>
             </div>
@@ -396,7 +401,7 @@ export function NotificationsBell() {
           <div className="max-h-[60vh] overflow-y-auto">
             {list.length === 0 ? (
               <div className="text-xs text-muted-foreground text-center py-8">
-                No notifications match these filters.
+                {t("notif_no_match")}
               </div>
             ) : (
               <ul className="divide-y">
@@ -437,8 +442,8 @@ export function NotificationsBell() {
                         {(inv || n.disputeId) && (
                           <div className="mt-1 flex items-center gap-2 text-[11px] text-primary">
                             {inv && <span className="font-mono">→ {inv.number}</span>}
-                            {n.disputeId && <span>· open request</span>}
-                            {n.invoiceId && !n.disputeId && <span>· view timeline</span>}
+                            {n.disputeId && <span>{t("notif_open_request")}</span>}
+                            {n.invoiceId && !n.disputeId && <span>{t("notif_view_timeline")}</span>}
                           </div>
                         )}
                       </div>
@@ -455,24 +460,21 @@ export function NotificationsBell() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {confirm?.ids.length ?? 0} notification
-              {(confirm?.ids.length ?? 0) === 1 ? "" : "s"}?
+              {t("notif_delete_title")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {confirm?.mode === "all"
-                ? `This will remove all ${unreadOnly ? "unread " : ""}notifications matching your current filters. You can undo this from the toast.`
-                : "These notifications will be removed. You can undo this from the toast."}
+              {t("notif_delete_desc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("btn_cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (confirm) performDelete(confirm.ids);
                 setConfirm(null);
               }}
             >
-              Delete
+              {t("notif_delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

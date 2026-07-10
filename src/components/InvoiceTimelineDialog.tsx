@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { FileText, Split as SplitIcon, MessageSquare, Activity, Download, ArrowDownNarrowWide, ArrowUpNarrowWide } from "lucide-react";
 import { useStore } from "@/lib/commission-store";
+import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 
 type SourceFilter = "all" | "split" | "pdf" | "dispute";
@@ -66,7 +67,9 @@ export function InvoiceTimelineDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const s = useStore();
+  const isEs = s.language === "es";
   const inv = invoiceId ? s.invoices.find((i) => i.id === invoiceId) ?? null : null;
   const initial = useMemo(
     () => (invoiceId ? readFilters()[invoiceId] : undefined),
@@ -161,7 +164,7 @@ export function InvoiceTimelineDialog({
     a.download = `timeline-${inv.number}${filterSuffix}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`Exported ${entries.length} filtered entries (CSV)`);
+    toast.success(t("tl_export_csv"));
   };
 
   const exportPdf = () => {
@@ -196,16 +199,16 @@ export function InvoiceTimelineDialog({
       },
     });
     doc.save(`timeline-${inv.number}${filterSuffix}.pdf`);
-    toast.success(`Exported ${entries.length} filtered entries (PDF)`);
+    toast.success(t("tl_export_pdf"));
   };
 
   if (!inv) return null;
 
-  const SOURCES: { value: SourceFilter; label: string }[] = [
-    { value: "all", label: "All" },
-    { value: "split", label: "Splits" },
-    { value: "pdf", label: "PDFs" },
-    { value: "dispute", label: "Disputes" },
+  const SOURCES: { key: SourceFilter; label: string }[] = [
+    { key: "all", label: t("tl_filter_all") },
+    { key: "split", label: t("tl_filter_splits") },
+    { key: "pdf", label: t("tl_filter_pdfs") },
+    { key: "dispute", label: t("tl_filter_disputes") },
   ];
 
   return (
@@ -214,11 +217,10 @@ export function InvoiceTimelineDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Activity className="w-4 h-4" />
-            Timeline · Invoice {inv.number}
+            {t("tl_title")} {inv.number}
           </DialogTitle>
           <DialogDescription>
-            All audit events for this invoice — split changes, PDF regenerations,
-            and dispute/request activity.
+            {t("tl_desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -226,11 +228,11 @@ export function InvoiceTimelineDialog({
           <div className="flex items-center gap-1 flex-wrap">
             {SOURCES.map((opt) => (
               <Button
-                key={opt.value}
+                key={opt.key}
                 size="sm"
-                variant={sourceFilter === opt.value ? "default" : "outline"}
+                variant={sourceFilter === opt.key ? "default" : "outline"}
                 className="h-6 px-2 text-[11px]"
-                onClick={() => setSourceFilter(opt.value)}
+                onClick={() => setSourceFilter(opt.key)}
               >
                 {opt.label}
               </Button>
@@ -241,7 +243,7 @@ export function InvoiceTimelineDialog({
                 onChange={(e) => setDisputeFilter(e.target.value)}
                 className="h-6 text-[11px] border border-input rounded-md bg-background px-2"
               >
-                <option value="all">All disputes</option>
+                <option value="all">{t("tl_all_disputes")}</option>
                 {invoiceDisputes.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.kind} · {d.reason.slice(0, 24)}
@@ -259,14 +261,14 @@ export function InvoiceTimelineDialog({
               variant="ghost"
               className="h-7 px-2 text-xs"
               onClick={() => setSortOrder((o) => (o === "newest" ? "oldest" : "newest"))}
-              title={sortOrder === "newest" ? "Newest first" : "Oldest first"}
+              title={sortOrder === "newest" ? t("notif_newest") : t("notif_oldest")}
             >
               {sortOrder === "newest" ? (
                 <ArrowDownNarrowWide className="w-3 h-3 mr-1" />
               ) : (
                 <ArrowUpNarrowWide className="w-3 h-3 mr-1" />
               )}
-              {sortOrder === "newest" ? "Newest" : "Oldest"}
+              {sortOrder === "newest" ? t("tl_newest") : t("tl_oldest")}
             </Button>
             <Button size="sm" variant="outline" onClick={exportCsv} disabled={entries.length === 0}>
               <Download className="w-3.5 h-3.5 mr-1" />
@@ -281,7 +283,7 @@ export function InvoiceTimelineDialog({
 
         {entries.length === 0 ? (
           <div className="text-sm text-muted-foreground border border-dashed rounded-md p-6 text-center">
-            No audit events yet.
+            {t("tl_no_events")}
           </div>
         ) : (
           <ul className="space-y-2 max-h-[60vh] overflow-y-auto">
@@ -304,7 +306,7 @@ export function InvoiceTimelineDialog({
                         {e.at.slice(0, 16).replace("T", " ")}
                       </span>
                       <span className="font-semibold">{e.action}</span>
-                      <span className="text-muted-foreground">by {e.by}</span>
+                      <span className="text-muted-foreground">{t("tl_by")} {e.by}</span>
                       {e.meta && (
                         <span className="text-[10px] text-muted-foreground">
                           ({e.meta})

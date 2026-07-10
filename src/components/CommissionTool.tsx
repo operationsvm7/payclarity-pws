@@ -105,6 +105,7 @@ const MC_COLORS = [
 
 function MultiCompanyDashboard({ onEnter }: { onEnter: (companyId: string) => void }) {
   const { companiesList, profile, switchCompany } = useAuth();
+  const t = useT();
   const [entering, setEntering] = useState<string | null>(null);
 
   async function handleEnter(companyId: string) {
@@ -120,9 +121,9 @@ function MultiCompanyDashboard({ onEnter }: { onEnter: (companyId: string) => vo
         <div className="w-14 h-14 rounded-2xl bg-gradient-cta shadow-btn flex items-center justify-center mx-auto mb-4">
           <Building2 className="w-7 h-7 text-white" />
         </div>
-        <h2 className="text-2xl font-bold mb-1">Tus empresas</h2>
+        <h2 className="text-2xl font-bold mb-1">{t("mc_title")}</h2>
         <p className="text-muted-foreground text-sm">
-          Selecciona una empresa para acceder a su panel de trabajo
+          {t("mc_subtitle")}
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-3xl">
@@ -139,7 +140,7 @@ function MultiCompanyDashboard({ onEnter }: { onEnter: (companyId: string) => vo
             >
               {isActive && (
                 <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                  Activo
+                  {t("mc_active")}
                 </span>
               )}
               <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white text-xl font-bold mb-3 shadow-sm`}>
@@ -1927,12 +1928,13 @@ function ProductsPanel() {
 /* ---------- Branding & Invoice Templates (Admin only) ---------- */
 function BrandingPanel() {
   const { company, setCompany, role, invoices, agents, financeCompanies } = useStore();
+  const t = useT();
   if (role !== "admin") return null;
 
   const onLogoUpload = (file?: File | null) => {
     if (!file) return;
     if (file.size > 1024 * 1024) {
-      toast.error("Logo must be under 1 MB");
+      toast.error(t("brand_logo_too_large"));
       return;
     }
     const reader = new FileReader();
@@ -1943,23 +1945,23 @@ function BrandingPanel() {
 
   return (
     <SectionCard
-      title="Brand Studio"
-      desc="Per-company branding. PDFs use these settings; old PDFs keep the branding snapshot from when they were generated."
+      title={t("tab_company")}
+      desc={t("brand_desc")}
     >
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="grid gap-4">
           <div>
-            <Label>Company logo</Label>
+            <Label>{t("brand_logo_lbl")}</Label>
             <div className="flex items-center gap-3 mt-1">
               <div className="w-20 h-20 rounded-md border border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden">
                 {company.logoDataUrl
                   ? <img src={company.logoDataUrl} alt="logo" className="max-w-full max-h-full object-contain" />
-                  : <span className="text-xs text-muted-foreground">No logo</span>}
+                  : <span className="text-xs text-muted-foreground">{t("brand_no_logo")}</span>}
               </div>
               <div className="flex flex-col gap-2">
                 <Input type="file" accept="image/png,image/jpeg" onChange={(e) => onLogoUpload(e.target.files?.[0])} />
                 {company.logoDataUrl && (
-                  <Button variant="outline" size="sm" onClick={() => setCompany({ logoDataUrl: "" })}>Remove logo</Button>
+                  <Button variant="outline" size="sm" onClick={() => setCompany({ logoDataUrl: "" })}>{t("brand_remove_logo")}</Button>
                 )}
               </div>
             </div>
@@ -1967,17 +1969,17 @@ function BrandingPanel() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Primary brand color</Label>
+              <Label>{t("brand_primary_color")}</Label>
               <Input type="color" value={company.brandColor} onChange={(e) => setCompany({ brandColor: e.target.value })} />
             </div>
             <div>
-              <Label>Accent color</Label>
+              <Label>{t("brand_accent_color")}</Label>
               <Input type="color" value={company.brandColorSecondary} onChange={(e) => setCompany({ brandColorSecondary: e.target.value })} />
             </div>
           </div>
 
           <div>
-            <Label>Invoice template</Label>
+            <Label>{t("brand_invoice_template")}</Label>
             <Select value={company.invoiceTemplate} onValueChange={(v: any) => setCompany({ invoiceTemplate: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -1989,11 +1991,11 @@ function BrandingPanel() {
           </div>
 
           <div>
-            <Label>Footer text</Label>
+            <Label>{t("brand_footer")}</Label>
             <Textarea rows={2} value={company.footerText} onChange={(e) => setCompany({ footerText: e.target.value })} />
           </div>
           <div>
-            <Label>Disclaimer / legal text</Label>
+            <Label>{t("brand_disclaimer")}</Label>
             <Textarea rows={3} value={company.disclaimerText} onChange={(e) => setCompany({ disclaimerText: e.target.value })} />
           </div>
 
@@ -2001,15 +2003,15 @@ function BrandingPanel() {
         </div>
 
         <div>
-          <Label>Live preview</Label>
+          <Label>{t("brand_live_preview")}</Label>
           <InvoicePreview />
         </div>
       </div>
 
       <div className="mt-6">
         <div className="flex items-center justify-between mb-2">
-          <Label>Template gallery — compare all 5 styles</Label>
-          <span className="text-xs text-muted-foreground">Click any to apply</span>
+          <Label>{t("brand_gallery_title")}</Label>
+          <span className="text-xs text-muted-foreground">{t("brand_gallery_hint")}</span>
         </div>
         <TemplateGallery />
       </div>
@@ -2019,27 +2021,28 @@ function BrandingPanel() {
 
 function TemplateGallery() {
   const { company, setCompany } = useStore();
+  const t = useT();
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-      {INVOICE_TEMPLATES.map((t) => {
-        const active = company.invoiceTemplate === t.id;
+      {INVOICE_TEMPLATES.map((tpl) => {
+        const active = company.invoiceTemplate === tpl.id;
         return (
           <button
-            key={t.id}
+            key={tpl.id}
             type="button"
-            onClick={() => setCompany({ invoiceTemplate: t.id })}
+            onClick={() => setCompany({ invoiceTemplate: tpl.id })}
             className={`group text-left rounded-lg border-2 transition-all p-2 bg-background hover:shadow-md ${
               active ? "border-primary ring-2 ring-primary/30" : "border-border/60 hover:border-primary/50"
             }`}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <div className="text-xs font-semibold">{t.name}</div>
-              {active && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground">Active</span>}
+              <div className="text-xs font-semibold">{tpl.name}</div>
+              {active && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground">{t("brand_active")}</span>}
             </div>
             <div className="origin-top-left scale-[0.55] w-[182%] h-[260px] overflow-hidden pointer-events-none">
-              <InvoicePreview templateOverride={t.id} forGallery={true} />
+              <InvoicePreview templateOverride={tpl.id} forGallery={true} />
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1.5 line-clamp-2">{t.desc}</div>
+            <div className="text-[10px] text-muted-foreground mt-1.5 line-clamp-2">{tpl.desc}</div>
           </button>
         );
       })}

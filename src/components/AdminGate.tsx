@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UserManagementPanel } from "@/components/UserManagementPanel";
+import { useT } from "@/lib/i18n";
 
 interface AdminGateProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface AdminGateProps {
 }
 
 export function AdminGate({ open, onClose }: AdminGateProps) {
+  const t = useT();
   const { profile } = useAuth();
   const [unlocked, setUnlocked] = useState(false);
   const [password, setPassword] = useState("");
@@ -42,7 +44,7 @@ export function AdminGate({ open, onClose }: AdminGateProps) {
 
     setVerifying(false);
     if (authError) {
-      setError("Incorrect password.");
+      setError(t("ag_wrong"));
       setPassword("");
       return;
     }
@@ -58,14 +60,14 @@ export function AdminGate({ open, onClose }: AdminGateProps) {
             <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center flex-shrink-0">
               <Shield className="w-5 h-5 text-white" />
             </div>
-            <SheetTitle className="text-lg">Admin Panel</SheetTitle>
+            <SheetTitle className="text-lg">{t("ag_title")}</SheetTitle>
             {unlocked && (
               <button
                 onClick={() => { setUnlocked(false); setPassword(""); }}
                 className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Lock className="w-3.5 h-3.5" />
-                Lock
+                {t("ag_lock")}
               </button>
             )}
           </div>
@@ -76,9 +78,9 @@ export function AdminGate({ open, onClose }: AdminGateProps) {
             <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
               <Lock className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h3 className="font-semibold text-lg mb-1">Restricted Area</h3>
+            <h3 className="font-semibold text-lg mb-1">{t("ag_restricted")}</h3>
             <p className="text-sm text-muted-foreground mb-8 text-center max-w-xs">
-              Enter your password to access the administration panel.
+              {t("ag_desc")}
             </p>
 
             {error && (
@@ -90,12 +92,12 @@ export function AdminGate({ open, onClose }: AdminGateProps) {
 
             <div className="space-y-3 w-full max-w-xs">
               <div className="space-y-1.5">
-                <Label htmlFor="admin-password">Password</Label>
+                <Label htmlFor="admin-password">{t("ag_password")}</Label>
                 <div className="relative">
                   <Input
                     id="admin-password"
                     type={showPass ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder={t("ag_password_placeholder")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && verify()}
@@ -117,7 +119,7 @@ export function AdminGate({ open, onClose }: AdminGateProps) {
                 onClick={verify}
                 disabled={verifying || !password}
               >
-                {verifying ? "Verifying…" : "Enter admin area"}
+                {verifying ? t("ag_verifying") : t("ag_enter")}
               </Button>
             </div>
           </div>

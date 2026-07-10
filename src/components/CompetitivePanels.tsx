@@ -22,19 +22,24 @@ import { useT } from "@/lib/i18n";
    Every entry feeds the Balance Ledger via the store.
    =================================================================== */
 
-const KINDS: { value: AdjustmentKind; label: string; desc: string }[] = [
-  { value: "advance", label: "Advance", desc: "Money paid up-front to a rep, deducted later." },
-  { value: "deduction", label: "Deduction", desc: "Reduces the rep's payable balance." },
-  { value: "credit", label: "Credit / bonus", desc: "Adds to the rep's payable balance." },
-  { value: "chargeback", label: "Chargeback", desc: "Sale fell through, claw back commission." },
-  { value: "manual_override", label: "Manual override", desc: "Discretionary upline override." },
-  { value: "payment_correction", label: "Payment correction", desc: "Fix an over/under payment." },
-  { value: "split_correction", label: "Split correction", desc: "Re-split commission across reps." },
-  { value: "pending_balance", label: "Pending balance", desc: "Move money into pending balance." },
-];
+function getKinds(t: (k: any) => string, isEs: boolean): { value: AdjustmentKind; label: string; desc: string }[] {
+  return [
+    { value: "advance", label: "Advance", desc: isEs ? "Dinero pagado por adelantado al vendedor, descontado luego." : "Money paid up-front to a rep, deducted later." },
+    { value: "deduction", label: isEs ? "Deduccion" : "Deduction", desc: isEs ? "Reduce el saldo a pagar del vendedor." : "Reduces the rep's payable balance." },
+    { value: "credit", label: isEs ? "Credito / bono" : "Credit / bonus", desc: isEs ? "Suma al saldo a pagar del vendedor." : "Adds to the rep's payable balance." },
+    { value: "chargeback", label: "Chargeback", desc: isEs ? "Venta cancelada, se recupera la comision." : "Sale fell through, claw back commission." },
+    { value: "manual_override", label: isEs ? "Override manual" : "Manual override", desc: isEs ? "Override discrecional de upline." : "Discretionary upline override." },
+    { value: "payment_correction", label: isEs ? "Correccion de pago" : "Payment correction", desc: isEs ? "Corrige un pago mal registrado." : "Fixes a mis-recorded payment." },
+    { value: "split_correction", label: isEs ? "Correccion de split" : "Split correction", desc: isEs ? "Ajusta porcentajes de split historicos." : "Adjusts historical split percentages." },
+    { value: "pending_balance", label: isEs ? "Balance pendiente" : "Pending balance", desc: isEs ? "Ajuste de balance pendiente." : "Pending balance adjustment." },
+  ];
+}
 
 export function AdjustmentsPanel() {
+  const t = useT();
   const s = useStore();
+  const isEs = s.language === "es";
+  const KINDS = getKinds(t, isEs);
   const isAdmin = s.role === "admin";
   const [form, setForm] = useState({
     agentId: "",
@@ -49,15 +54,15 @@ export function AdjustmentsPanel() {
     return (
       <Card className="p-6">
         <p className="text-sm text-muted-foreground">
-          Only admins can post adjustments. Reps can request corrections from the Approvals tab.
+          {t("adj_admin_only")}
         </p>
       </Card>
     );
   }
 
   const submit = () => {
-    if (!form.agentId) return toast.error("Pick a salesperson");
-    if (!form.amount || form.amount <= 0) return toast.error("Amount must be positive");
+    if (!form.agentId) return toast.error(t("adj_pick_rep"));
+    if (!form.amount || form.amount <= 0) return toast.error(t("adj_amount_positive"));
     s.addAdjustment({
       agentId: form.agentId,
       invoiceId: form.invoiceId || null,
@@ -67,7 +72,7 @@ export function AdjustmentsPanel() {
       note: form.note.trim(),
       createdBy: "admin",
     });
-    toast.success("Adjustment recorded");
+    toast.success(t("adj_recorded"));
     setForm({ ...form, amount: 0, note: "", invoiceId: "" });
   };
 
@@ -77,17 +82,16 @@ export function AdjustmentsPanel() {
     <Card className="p-6 shadow-card space-y-6">
       <div>
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Settings2 className="w-5 h-5" /> Adjustment & Correction Center
+          <Settings2 className="w-5 h-5" /> {t("adj_title")}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          One place for every advance, deduction, credit, chargeback, manual override and payment
-          correction. Every entry is logged in each rep's Balance Ledger.
+          {t("adj_desc")}
         </p>
       </div>
 
       <div className="grid md:grid-cols-6 gap-3 p-4 bg-muted/40 rounded-lg">
         <div className="md:col-span-2">
-          <Label>Salesperson</Label>
+          <Label>{t("adj_salesperson")}</Label>
           <Select value={form.agentId} onValueChange={(v) => setForm({ ...form, agentId: v })}>
             <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
             <SelectContent>
@@ -96,7 +100,7 @@ export function AdjustmentsPanel() {
           </Select>
         </div>
         <div className="md:col-span-2">
-          <Label>Type</Label>
+          <Label>{t("adj_type")}</Label>
           <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v as AdjustmentKind })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -108,18 +112,18 @@ export function AdjustmentsPanel() {
           </p>
         </div>
         <div>
-          <Label>Amount</Label>
+          <Label>{t("adj_amount")}</Label>
           <Input type="number" step="0.01" value={form.amount}
             onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })} />
         </div>
         <div>
-          <Label>Date</Label>
+          <Label>{t("adj_date")}</Label>
           <Input type="date" value={form.date}
             onChange={(e) => setForm({ ...form, date: e.target.value })} />
         </div>
 
         <div className="md:col-span-3">
-          <Label>Related invoice (optional)</Label>
+          <Label>{t("adj_related_inv")}</Label>
           <Select value={form.invoiceId || "none"} onValueChange={(v) => setForm({ ...form, invoiceId: v === "none" ? "" : v })}>
             <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
             <SelectContent>
@@ -135,28 +139,28 @@ export function AdjustmentsPanel() {
           </Select>
         </div>
         <div className="md:col-span-3">
-          <Label>Note</Label>
-          <Input value={form.note} placeholder="e.g. Q1 advance, customer cancelled, payroll correction…"
+          <Label>{t("adj_note")}</Label>
+          <Input value={form.note} placeholder={t("adj_note_placeholder")}
             onChange={(e) => setForm({ ...form, note: e.target.value })} />
         </div>
         <div className="md:col-span-6">
-          <Button onClick={submit}><Plus className="w-4 h-4 mr-2" />Post adjustment</Button>
+          <Button onClick={submit}><Plus className="w-4 h-4 mr-2" />{t("adj_post")}</Button>
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold mb-2">Recent adjustments</h3>
+        <h3 className="text-sm font-semibold mb-2">{t("adj_recent")}</h3>
         {recent.length === 0 ? (
           <div className="text-center py-12 text-sm text-muted-foreground border border-dashed rounded-lg">
-            No adjustments yet.
+            {t("adj_no_adj")}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground uppercase tracking-wider">
                 <tr>
-                  <th className="py-2">Date</th><th>Salesperson</th><th>Type</th>
-                  <th className="text-right">Amount</th><th>Invoice</th><th>Note</th><th></th>
+                  <th className="py-2">{t("th_date")}</th><th>{t("th_salesperson")}</th><th>{t("th_type")}</th>
+                  <th className="text-right">{t("lbl_amount")}</th><th>{t("th_invoice")}</th><th>{t("th_note")}</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -224,6 +228,8 @@ function parseCsv(text: string): Record<string, string>[] {
 }
 
 export function CsvImportPanel() {
+  const t = useT();
+  const isEs = useStore().language === "es";
   const s = useStore();
   const isAdmin = s.role === "admin";
   const [preview, setPreview] = useState<Omit<Invoice, "id" | "number">[]>([]);
@@ -232,7 +238,7 @@ export function CsvImportPanel() {
   if (!isAdmin) {
     return (
       <Card className="p-6">
-        <p className="text-sm text-muted-foreground">Only admins can import invoices.</p>
+        <p className="text-sm text-muted-foreground">{t("csv_admin_only")}</p>
       </Card>
     );
   }
@@ -277,14 +283,14 @@ export function CsvImportPanel() {
 
     setErrors(errs);
     setPreview(out);
-    if (out.length) toast.success(`${out.length} invoice(s) ready to import`);
-    else toast.error("No valid rows found");
+    if (out.length) toast.success(t("csv_ready").replace("{n}", String(out.length)));
+    else toast.error(t("csv_no_valid"));
   };
 
   const confirm = () => {
     if (!preview.length) return;
     const n = s.importInvoices(preview);
-    toast.success(`Imported ${n} invoice(s)`);
+    toast.success(t("csv_imported").replace("{n}", String(n)));
     setPreview([]);
     setErrors([]);
   };
@@ -304,16 +310,15 @@ export function CsvImportPanel() {
     <Card className="p-6 shadow-card space-y-5">
       <div>
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Upload className="w-5 h-5" /> Import invoices from CSV
+          <Upload className="w-5 h-5" /> {t("csv_title")}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          No CRM required. Upload a CSV and we'll create invoices in bulk.
-          Required columns: <code className="text-xs">date, customer, salesperson, sales_amount, product_cost</code>.
+          {t("csv_desc")}
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="outline" onClick={downloadTemplate}>Download CSV template</Button>
+        <Button variant="outline" onClick={downloadTemplate}>{t("csv_download_tpl")}</Button>
         <label className="inline-flex">
           <input
             type="file"
@@ -322,11 +327,11 @@ export function CsvImportPanel() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.currentTarget.value = ""; }}
           />
           <span className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium cursor-pointer">
-            <Upload className="w-4 h-4 mr-2" /> Choose CSV
+            <Upload className="w-4 h-4 mr-2" /> {t("csv_choose")}
           </span>
         </label>
         {preview.length > 0 && (
-          <Button onClick={confirm}>Import {preview.length} invoice(s)</Button>
+          <Button onClick={confirm}>{t("csv_import_btn").replace("{n}", String(preview.length))}</Button>
         )}
       </div>
 
@@ -340,8 +345,8 @@ export function CsvImportPanel() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground uppercase tracking-wider">
-              <tr><th className="py-2">Date</th><th>Customer</th><th>Salesperson</th>
-                <th className="text-right">Sales</th><th className="text-right">Cost</th></tr>
+              <tr><th className="py-2">{t("th_date")}</th><th>{t("th_customer")}</th><th>{t("th_salesperson")}</th>
+                <th className="text-right">{t("th_sales")}</th><th className="text-right">Cost</th></tr>
             </thead>
             <tbody>
               {preview.map((p, i) => {
@@ -756,4 +761,3 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
 
 /* small unused-export shim to silence textarea import in some bundlers */
 export const _ = Textarea;
-

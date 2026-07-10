@@ -39,6 +39,7 @@ import {
   buildSaleInvoicePDF,
   buildSaleAndDownload,
 } from "@/lib/generate-invoices";
+import { useT } from "@/lib/i18n";
 
 /* ---------- Shared SectionCard (duplicated lightweight) ---------- */
 function Section({
@@ -76,6 +77,7 @@ function Empty({ msg }: { msg: string }) {
 
 /* ========== WALLET PANEL ========== */
 export function WalletPanel() {
+  const t = useT();
   const s = useStore();
   const isAdmin = s.role !== "rep";
   const myAgentId = !isAdmin ? s.activeAgentId : null;
@@ -100,8 +102,8 @@ export function WalletPanel() {
 
   if (!visibleWallets.length) {
     return (
-      <Section title="Commission Wallet" desc="Per-salesperson portal showing earned, paid, pending, advances, tax reserve and history.">
-        <Empty msg={isAdmin ? "Add a salesperson and an invoice to see their wallet." : "No wallet data for your account yet."} />
+      <Section title={isAdmin ? t("wallet_title") : t("wallet_my_title")} desc={t("wallet_desc")}>
+        <Empty msg={isAdmin ? t("wallet_empty_admin") : t("wallet_empty_rep")} />
       </Section>
     );
   }
@@ -109,14 +111,14 @@ export function WalletPanel() {
   return (
     <div className="space-y-6">
       <Section
-        title={isAdmin ? "Commission Wallet" : "My Commission Wallet"}
-        desc="Earned, paid, pending balance, advances, tax reserve and upcoming payout."
+        title={isAdmin ? t("wallet_title") : t("wallet_my_title")}
+        desc={t("wallet_desc")}
         action={
           isAdmin ? (
             <div className="w-full sm:w-64">
               <Select value={current?.agent.id} onValueChange={setSelected}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Pick salesperson" />
+                  <SelectValue placeholder={t("wallet_pick_rep")} />
                 </SelectTrigger>
                 <SelectContent>
                   {visibleWallets.map((w) => (
@@ -137,13 +139,14 @@ export function WalletPanel() {
 }
 
 function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet; canRecordPayment?: boolean }) {
+  const t = useT();
   const s = useStore();
   const cur = s.company.currency;
   const p = wallet.payout;
 
   const [pay, setPay] = useState({ amount: 0, method: "Bank transfer", reference: "", notes: "" });
   const recordPayment = () => {
-    if (!pay.amount || pay.amount <= 0) return toast.error("Enter an amount");
+    if (!pay.amount || pay.amount <= 0) return toast.error(t("wallet_enter_amount"));
     s.addPayment({
       agentId: wallet.agent.id,
       date: new Date().toISOString().slice(0, 10),
@@ -153,7 +156,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
       notes: pay.notes,
     });
     setPay({ amount: 0, method: "Bank transfer", reference: "", notes: "" });
-    toast.success("Payment recorded");
+    toast.success(t("wallet_payment_recorded"));
   };
 
   const downloadCommissionPDF = () => {
@@ -178,24 +181,24 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
         <Card className="p-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold flex items-center gap-2">
-              <Wallet className="w-4 h-4" /> Invoice history
+              <Wallet className="w-4 h-4" /> {t("wallet_invoice_hist")}
             </h3>
             <Button size="sm" variant="outline" onClick={downloadCommissionPDF}>
-              <FileDown className="w-4 h-4 mr-2" />Commission PDF
+              <FileDown className="w-4 h-4 mr-2" />{t("wallet_commission_pdf")}
             </Button>
           </div>
           {p.invoices.length === 0 ? (
-            <Empty msg="No invoices yet." />
+            <Empty msg={t("empty_no_invoices")} />
           ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground uppercase">
                 <tr>
-                  <th className="py-1">#</th>
-                  <th>Date</th>
-                  <th>Customer</th>
-                  <th className="text-right">Profit</th>
-                  <th className="text-right">Status</th>
+                  <th className="py-1">{t("th_number_col")}</th>
+                  <th>{t("th_date")}</th>
+                  <th>{t("th_customer")}</th>
+                  <th className="text-right">{t("th_profit_col")}</th>
+                  <th className="text-right">{t("th_status")}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -229,19 +232,19 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
         </Card>
 
         <Card className="p-5">
-          <h3 className="font-semibold mb-3">Override history</h3>
+          <h3 className="font-semibold mb-3">{t("wallet_override_hist")}</h3>
           {p.downline.length === 0 ? (
-            <Empty msg="No downline overrides." />
+            <Empty msg={t("wallet_no_overrides")} />
           ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-xs text-muted-foreground uppercase">
                 <tr>
-                  <th className="py-1">Agent</th>
-                  <th>Level</th>
+                  <th className="py-1">{t("th_agent")}</th>
+                  <th>{t("th_level")}</th>
                   <th className="text-right">Profit</th>
-                  <th className="text-right">Rate</th>
-                  <th className="text-right">Override</th>
+                  <th className="text-right">{t("th_rate")}</th>
+                  <th className="text-right">{t("th_override_col")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -262,20 +265,20 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
       </div>
 
       <Card className="p-5">
-        <h3 className="font-semibold mb-3">Balance ledger</h3>
+        <h3 className="font-semibold mb-3">{t("wallet_balance_ledger")}</h3>
         <LedgerTable entries={wallet.ledger} cur={cur} />
         <div className="mt-3 text-sm flex justify-between border-t pt-3">
-          <span className="text-muted-foreground">Current pending balance</span>
+          <span className="text-muted-foreground">{t("wallet_current_bal")}</span>
           <span className="font-mono font-bold">{fmtMoney(wallet.pendingBalance, cur)}</span>
         </div>
       </Card>
 
       <Card className="p-5">
-        <h3 className="font-semibold mb-3">Payments received</h3>
+        <h3 className="font-semibold mb-3">{t("wallet_payments_recv")}</h3>
         {canRecordPayment && (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2 mb-3">
           <div>
-            <Label className="text-xs">Amount</Label>
+            <Label className="text-xs">{t("lbl_amount")}</Label>
             <Input
               type="number"
               step="0.01"
@@ -284,39 +287,39 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
             />
           </div>
           <div>
-            <Label className="text-xs">Method</Label>
+            <Label className="text-xs">{t("lbl_method")}</Label>
             <Input value={pay.method} onChange={(e) => setPay({ ...pay, method: e.target.value })} />
           </div>
           <div>
-            <Label className="text-xs">Reference</Label>
+            <Label className="text-xs">{t("lbl_reference")}</Label>
             <Input
               value={pay.reference}
               onChange={(e) => setPay({ ...pay, reference: e.target.value })}
             />
           </div>
           <div className="md:col-span-1">
-            <Label className="text-xs">Notes</Label>
+            <Label className="text-xs">{t("lbl_notes")}</Label>
             <Input value={pay.notes} onChange={(e) => setPay({ ...pay, notes: e.target.value })} />
           </div>
           <div className="flex items-end">
             <Button onClick={recordPayment} className="w-full">
               <Plus className="w-4 h-4 mr-2" />
-              Record
+              {t("wallet_record")}
             </Button>
           </div>
         </div>
         )}
         {wallet.payments.length === 0 ? (
-          <Empty msg="No payments yet." />
+          <Empty msg={t("wallet_no_payments")} />
         ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-muted-foreground uppercase">
               <tr>
-                <th className="py-1">Date</th>
-                <th>Method</th>
-                <th>Reference</th>
-                <th className="text-right">Amount</th>
+                <th className="py-1">{t("th_date")}</th>
+                <th>{t("lbl_method")}</th>
+                <th>{t("lbl_reference")}</th>
+                <th className="text-right">{t("lbl_amount")}</th>
                 <th></th>
               </tr>
             </thead>
@@ -355,18 +358,19 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 }
 
 function LedgerTable({ entries, cur }: { entries: LedgerEntry[]; cur: string }) {
-  if (entries.length === 0) return <Empty msg="No ledger activity yet." />;
+  const t = useT();
+  if (entries.length === 0) return <Empty msg={t("wallet_no_ledger")} />;
   return (
     <div className="overflow-x-auto max-h-96">
       <table className="w-full text-sm">
         <thead className="text-left text-xs text-muted-foreground uppercase sticky top-0 bg-background">
           <tr>
-            <th className="py-1">Date</th>
-            <th>Type</th>
-            <th>Description</th>
-            <th className="text-right">Earned</th>
-            <th className="text-right">Out / withheld</th>
-            <th className="text-right">Balance</th>
+            <th className="py-1">{t("th_date")}</th>
+            <th>{t("th_type")}</th>
+            <th>{t("lbl_description")}</th>
+            <th className="text-right">{t("th_earned")}</th>
+            <th className="text-right">{t("th_out")}</th>
+            <th className="text-right">{t("th_balance")}</th>
           </tr>
         </thead>
         <tbody>
@@ -533,21 +537,6 @@ export function ExplainDialog({
 
 /* ========== APPROVAL REQUEST WORKFLOW ========== */
 
-const KIND_LABEL: Record<string, string> = {
-  correction: "Correction",
-  dispute: "Dispute",
-  adjustment: "Adjustment",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  submitted: "Submitted",
-  under_review: "Under review",
-  needs_info: "Needs info",
-  approved: "Approved",
-  rejected: "Rejected",
-  resolved: "Resolved",
-};
-
 const STATUS_ORDER = [
   "submitted",
   "under_review",
@@ -556,12 +545,6 @@ const STATUS_ORDER = [
   "rejected",
   "resolved",
 ] as const;
-
-const PRIORITY_LABEL: Record<string, string> = {
-  low: "Low",
-  normal: "Normal",
-  high: "High",
-};
 
 function statusVariant(st: string): "default" | "destructive" | "outline" | "secondary" {
   if (st === "approved" || st === "resolved") return "default";
@@ -576,15 +559,6 @@ function priorityVariant(p: string): "default" | "destructive" | "outline" | "se
   return "secondary";
 }
 
-const FIELD_OPTIONS: { value: keyof Invoice | ""; label: string }[] = [
-  { value: "", label: "— none —" },
-  { value: "salesAmount", label: "Sales amount" },
-  { value: "productCost", label: "Product cost" },
-  { value: "approvalPercent", label: "Approval %" },
-  { value: "discount", label: "Discount" },
-  { value: "customerName", label: "Customer name" },
-];
-
 export function DisputeDialog({
   invoiceId,
   open,
@@ -594,7 +568,9 @@ export function DisputeDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const s = useStore();
+  const isEs = s.language === "es";
   const inv = s.invoices.find((x) => x.id === invoiceId);
   const [kind, setKind] = useState<"correction" | "dispute" | "adjustment">("correction");
   const [priority, setPriority] = useState<"low" | "normal" | "high">("normal");
@@ -604,8 +580,19 @@ export function DisputeDialog({
   const [toValue, setToValue] = useState("");
   if (!inv) return null;
 
+  const FIELD_OPTIONS: { value: keyof Invoice | ""; label: string }[] = [
+    { value: "", label: "— none —" },
+    { value: "salesAmount", label: t("disp_field_sales") },
+    { value: "productCost", label: t("disp_field_cost") },
+    { value: "approvalPercent", label: t("disp_field_approval") },
+    { value: "discount", label: t("lbl_discount") },
+    { value: "customerName", label: t("lbl_customer") },
+  ];
+
+  void isEs;
+
   const submit = () => {
-    if (!reason.trim()) return toast.error("Reason is required");
+    if (!reason.trim()) return toast.error(t("disp_reason_required"));
     const fieldKey = field && field !== "__none" ? field : "";
     const requestedChange =
       fieldKey && toValue.trim()
@@ -624,7 +611,7 @@ export function DisputeDialog({
       priority,
       requestedChange,
     });
-    toast.success("Approval request submitted");
+    toast.success(t("disp_submitted"));
     setReason("");
     setNotes("");
     setField("");
@@ -638,49 +625,49 @@ export function DisputeDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>New approval request — {inv.number}</DialogTitle>
+          <DialogTitle>{t("disp_new_title")} — {inv.number}</DialogTitle>
           <DialogDescription>
-            Submit a correction, dispute or adjustment for admin review.
+            {t("disp_new_desc")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label>Type</Label>
+              <Label>{t("disp_type")}</Label>
               <Select value={kind} onValueChange={(v: any) => setKind(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="correction">Correction</SelectItem>
-                  <SelectItem value="dispute">Dispute</SelectItem>
-                  <SelectItem value="adjustment">Adjustment</SelectItem>
+                  <SelectItem value="correction">{t("disp_kind_correction")}</SelectItem>
+                  <SelectItem value="dispute">{t("disp_kind_dispute")}</SelectItem>
+                  <SelectItem value="adjustment">{t("disp_kind_adjustment")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Priority</Label>
+              <Label>{t("disp_priority")}</Label>
               <Select value={priority} onValueChange={(v: any) => setPriority(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="low">{t("disp_prio_low")}</SelectItem>
+                  <SelectItem value="normal">{t("disp_prio_normal")}</SelectItem>
+                  <SelectItem value="high">{t("disp_prio_high")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
           <div>
-            <Label>Reason</Label>
+            <Label>{t("disp_reason")}</Label>
             <Input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. wrong sales amount"
+              placeholder={t("disp_reason_placeholder")}
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <Label>Suggested change — field</Label>
+              <Label>{t("disp_field")}</Label>
               <Select value={field} onValueChange={setField}>
-                <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("disp_field_none")} /></SelectTrigger>
                 <SelectContent>
                   {FIELD_OPTIONS.map((o) => (
                     <SelectItem key={o.value || "none"} value={o.value || "__none"}>
@@ -691,7 +678,7 @@ export function DisputeDialog({
               </Select>
             </div>
             <div>
-              <Label>New value</Label>
+              <Label>{t("disp_new_value")}</Label>
               <Input
                 value={toValue}
                 onChange={(e) => setToValue(e.target.value)}
@@ -699,31 +686,31 @@ export function DisputeDialog({
                 placeholder={
                   field && field !== "__none"
                     ? `Current: ${String((inv as any)[field] ?? "")}`
-                    : "Pick a field first"
+                    : t("disp_pick_field")
                 }
               />
             </div>
           </div>
           <div>
-            <Label>Notes (optional)</Label>
+            <Label>{t("disp_notes_lbl")}</Label>
             <Textarea
               value={notes}
               rows={3}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add context, customer feedback, references…"
+              placeholder={t("disp_notes_placeholder")}
             />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit}>Submit request</Button>
+          <Button variant="outline" onClick={onClose}>{t("btn_cancel")}</Button>
+          <Button onClick={submit}>{t("disp_submit")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function RequestTimeline({ events, agents }: { events: any[]; agents: { id: string; name: string }[] }) {
+function RequestTimeline({ events, agents: _agents }: { events: any[]; agents: { id: string; name: string }[] }) {
   if (!events?.length) return null;
   return (
     <div className="mt-3 border-t pt-3 space-y-1.5">
@@ -740,9 +727,30 @@ function RequestTimeline({ events, agents }: { events: any[]; agents: { id: stri
 }
 
 function RepRequestsPanel() {
+  const t = useT();
   const s = useStore();
   const myAgentId = s.activeAgentId;
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+
+  const STATUS_LABEL: Record<string, string> = {
+    submitted: t("disp_filter_submitted"),
+    under_review: t("disp_filter_review"),
+    needs_info: t("disp_filter_needs_info"),
+    approved: t("disp_filter_approved"),
+    rejected: t("disp_filter_rejected"),
+    resolved: t("disp_filter_resolved"),
+  };
+  const KIND_LABEL: Record<string, string> = {
+    correction: t("disp_kind_correction"),
+    dispute: t("disp_kind_dispute"),
+    adjustment: t("disp_kind_adjustment"),
+  };
+  const PRIORITY_LABEL: Record<string, string> = {
+    low: t("disp_prio_low"),
+    normal: t("disp_prio_normal"),
+    high: t("disp_prio_high"),
+  };
+
   const visible = s.disputes
     .filter((d) => d.agentId === myAgentId)
     .slice()
@@ -750,13 +758,13 @@ function RepRequestsPanel() {
 
   if (visible.length === 0) {
     return (
-      <Section title="My approval requests" desc="Track the status of requests you've submitted.">
-        <Empty msg="No requests yet. Submit one from any invoice via the 💬 icon." />
+      <Section title={t("disp_my_title")} desc={t("disp_my_desc")}>
+        <Empty msg={t("disp_my_empty")} />
       </Section>
     );
   }
   return (
-    <Section title="My approval requests" desc="Track the status of requests you've submitted.">
+    <Section title={t("disp_my_title")} desc={t("disp_my_desc")}>
       <div className="space-y-3">
         {visible.map((d) => {
           const inv = s.invoices.find((x) => x.id === d.invoiceId);
@@ -775,7 +783,7 @@ function RepRequestsPanel() {
               {d.notes && <p className="text-sm text-muted-foreground mt-1">{d.notes}</p>}
               {d.requestedChange && (
                 <p className="text-xs mt-1">
-                  <span className="text-muted-foreground">Suggested change:</span>{" "}
+                  <span className="text-muted-foreground">{t("disp_suggested")}</span>{" "}
                   <span className="font-mono">{d.requestedChange.field}</span>{" "}
                   <span className="text-muted-foreground">{d.requestedChange.fromValue}</span>{" "}
                   → <span className="font-medium">{d.requestedChange.toValue}</span>
@@ -783,13 +791,13 @@ function RepRequestsPanel() {
               )}
               {d.adminNotes && (
                 <p className="text-xs text-muted-foreground mt-2 italic">
-                  Admin notes: {d.adminNotes}
+                  {t("disp_admin_notes")} {d.adminNotes}
                 </p>
               )}
               {d.status === "needs_info" && (
                 <div className="mt-2 flex gap-2">
                   <Input
-                    placeholder="Reply to admin…"
+                    placeholder={t("disp_reply_placeholder")}
                     value={replyDraft[d.id] ?? ""}
                     onChange={(e) =>
                       setReplyDraft((p) => ({ ...p, [d.id]: e.target.value }))
@@ -802,10 +810,10 @@ function RepRequestsPanel() {
                       if (!msg) return;
                       s.replyToRequest(d.id, "rep", msg);
                       setReplyDraft((p) => ({ ...p, [d.id]: "" }));
-                      toast.success("Reply sent");
+                      toast.success(t("disp_reply_sent"));
                     }}
                   >
-                    Send
+                    {t("disp_send")}
                   </Button>
                 </div>
               )}
@@ -819,10 +827,30 @@ function RepRequestsPanel() {
 }
 
 function ApprovalsQueuePanel() {
+  const t = useT();
   const s = useStore();
   const [filter, setFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
   const [adminMsg, setAdminMsg] = useState<Record<string, string>>({});
+
+  const STATUS_LABEL: Record<string, string> = {
+    submitted: t("disp_filter_submitted"),
+    under_review: t("disp_filter_review"),
+    needs_info: t("disp_filter_needs_info"),
+    approved: t("disp_filter_approved"),
+    rejected: t("disp_filter_rejected"),
+    resolved: t("disp_filter_resolved"),
+  };
+  const KIND_LABEL: Record<string, string> = {
+    correction: t("disp_kind_correction"),
+    dispute: t("disp_kind_dispute"),
+    adjustment: t("disp_kind_adjustment"),
+  };
+  const PRIORITY_LABEL: Record<string, string> = {
+    low: t("disp_prio_low"),
+    normal: t("disp_prio_normal"),
+    high: t("disp_prio_high"),
+  };
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {
@@ -872,20 +900,20 @@ function ApprovalsQueuePanel() {
   }, [s.disputes, s.invoices, s.agents, filter, search]);
 
   const chips: { value: string; label: string }[] = [
-    { value: "active", label: `Active (${counts.active})` },
-    { value: "submitted", label: `Submitted (${counts.submitted})` },
-    { value: "under_review", label: `Under review (${counts.under_review})` },
-    { value: "needs_info", label: `Needs info (${counts.needs_info})` },
-    { value: "approved", label: `Approved (${counts.approved})` },
-    { value: "rejected", label: `Rejected (${counts.rejected})` },
-    { value: "resolved", label: `Resolved (${counts.resolved})` },
-    { value: "all", label: `All (${counts.all})` },
+    { value: "active", label: `${t("disp_filter_active")} (${counts.active})` },
+    { value: "submitted", label: `${t("disp_filter_submitted")} (${counts.submitted})` },
+    { value: "under_review", label: `${t("disp_filter_review")} (${counts.under_review})` },
+    { value: "needs_info", label: `${t("disp_filter_needs_info")} (${counts.needs_info})` },
+    { value: "approved", label: `${t("disp_filter_approved")} (${counts.approved})` },
+    { value: "rejected", label: `${t("disp_filter_rejected")} (${counts.rejected})` },
+    { value: "resolved", label: `${t("disp_filter_resolved")} (${counts.resolved})` },
+    { value: "all", label: `${t("disp_filter_all")} (${counts.all})` },
   ];
 
   return (
     <Section
-      title="Approval queue"
-      desc="Review, claim and resolve requests submitted by reps."
+      title={t("disp_queue_title")}
+      desc={t("disp_queue_desc")}
     >
       <div className="flex flex-wrap items-center gap-2 mb-4">
         {chips.map((c) => (
@@ -900,7 +928,7 @@ function ApprovalsQueuePanel() {
         ))}
         <div className="w-full sm:w-64 sm:ml-auto mt-2 sm:mt-0">
           <Input
-            placeholder="Search invoice, agent, reason…"
+            placeholder={t("disp_search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -908,7 +936,7 @@ function ApprovalsQueuePanel() {
       </div>
 
       {filtered.length === 0 ? (
-        <Empty msg="No requests match this filter." />
+        <Empty msg={t("disp_no_match")} />
       ) : (
         <div className="space-y-3">
           {filtered.map((d) => {
@@ -947,7 +975,7 @@ function ApprovalsQueuePanel() {
                     )}
                     {d.requestedChange && (
                       <p className="text-xs mt-1">
-                        <span className="text-muted-foreground">Suggested change:</span>{" "}
+                        <span className="text-muted-foreground">{t("disp_suggested")}</span>{" "}
                         <span className="font-mono">{d.requestedChange.field}</span>{" "}
                         <span className="text-muted-foreground">
                           {d.requestedChange.fromValue}
@@ -965,11 +993,11 @@ function ApprovalsQueuePanel() {
                                 ? Number(d.requestedChange!.toValue)
                                 : d.requestedChange!.toValue;
                               if (num.includes(f as string) && Number.isNaN(v)) {
-                                toast.error("Suggested value is not numeric");
+                                toast.error(t("disp_not_numeric"));
                                 return;
                               }
                               s.updateInvoice(inv.id, { [f]: v } as any);
-                              toast.success("Suggested change applied to invoice");
+                              toast.success(t("disp_change_applied"));
                             }}
                           >
                             Apply
@@ -979,7 +1007,7 @@ function ApprovalsQueuePanel() {
                     )}
                     <Textarea
                       className="mt-2"
-                      placeholder="Admin notes (visible to rep)…"
+                      placeholder={t("disp_admin_notes_placeholder")}
                       rows={2}
                       value={d.adminNotes}
                       onChange={(e) =>
@@ -989,7 +1017,7 @@ function ApprovalsQueuePanel() {
                     {d.status === "needs_info" && (
                       <div className="mt-2 flex gap-2">
                         <Input
-                          placeholder="Message to rep (will appear in timeline)…"
+                          placeholder={t("disp_msg_placeholder")}
                           value={adminMsg[d.id] ?? ""}
                           onChange={(e) =>
                             setAdminMsg((p) => ({ ...p, [d.id]: e.target.value }))
@@ -1005,7 +1033,7 @@ function ApprovalsQueuePanel() {
                             setAdminMsg((p) => ({ ...p, [d.id]: "" }));
                           }}
                         >
-                          Send
+                          {t("disp_send")}
                         </Button>
                       </div>
                     )}
@@ -1018,10 +1046,10 @@ function ApprovalsQueuePanel() {
                         variant="secondary"
                         onClick={() => {
                           s.claimRequest(d.id, s.activeAgentId);
-                          toast.success("Claimed");
+                          toast.success(t("disp_claimed"));
                         }}
                       >
-                        Claim
+                        {t("disp_claim")}
                       </Button>
                     )}
                     {isOpen && d.status !== "needs_info" && (
@@ -1033,45 +1061,45 @@ function ApprovalsQueuePanel() {
                             d.id,
                             "needs_info",
                             "admin",
-                            "More info requested"
+                            t("disp_needs_info")
                           );
-                          toast("Marked as needs info");
+                          toast(t("disp_marked_needs_info"));
                         }}
                       >
-                        Request info
+                        {t("disp_request_info")}
                       </Button>
                     )}
                     <Button
                       size="sm"
                       onClick={() => {
                         s.setRequestStatus(d.id, "approved", "admin", d.adminNotes || "");
-                        toast.success("Approved");
+                        toast.success(t("disp_approved_toast"));
                       }}
                       disabled={d.status === "approved"}
                     >
-                      Approve
+                      {t("um_approve")}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
                         s.setRequestStatus(d.id, "rejected", "admin", d.adminNotes || "");
-                        toast("Rejected");
+                        toast(t("disp_rejected_toast"));
                       }}
                       disabled={d.status === "rejected"}
                     >
-                      Reject
+                      {t("um_reject")}
                     </Button>
                     {(d.status === "approved" || d.status === "rejected") && (
                       <Button
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          s.setRequestStatus(d.id, "resolved", "admin", "Closed");
-                          toast.success("Resolved");
+                          s.setRequestStatus(d.id, "resolved", "admin", t("disp_closed"));
+                          toast.success(t("disp_resolved"));
                         }}
                       >
-                        Mark resolved
+                        {t("disp_mark_resolved")}
                       </Button>
                     )}
                     {inv && (
@@ -1082,7 +1110,7 @@ function ApprovalsQueuePanel() {
                           const c = calcInvoice(inv, s.financeCompanies);
                           const doc = buildSaleInvoicePDF(c, s.company, ag?.name || "—");
                           doc.save(`${inv.number}_recalculated.pdf`);
-                          toast.success("PDF regenerated");
+                          toast.success(t("disp_pdf_regen"));
                         }}
                       >
                         <FileDown className="w-4 h-4 mr-1" />
@@ -1114,7 +1142,9 @@ export function DisputesPanel() {
 
 /* ========== SIMULATOR ========== */
 export function SimulatorPanel() {
+  const t = useT();
   const s = useStore();
+  const isEs = s.language === "es";
   const cur = s.company.currency;
   const [form, setForm] = useState({
     salesAmount: 10000,
@@ -1140,11 +1170,13 @@ export function SimulatorPanel() {
   const profit = grand - form.productCost - form.deductions;
 
   let rate = 0;
-  let label = "Personal commission";
+  let label = isEs ? "Comision personal" : "Personal commission";
   if (form.level === 0) {
     const tiers = [...s.personalTiers].sort((a, b) => a.minVolume - b.minVolume);
-    for (const t of tiers) if (profit >= t.minVolume) rate = t.rate;
-    label = `Personal commission (tier @ ${(rate * 100).toFixed(2)}%)`;
+    for (const tier of tiers) if (profit >= tier.minVolume) rate = tier.rate;
+    label = isEs
+      ? `Comision personal (tier @ ${(rate * 100).toFixed(2)}%)`
+      : `Personal commission (tier @ ${(rate * 100).toFixed(2)}%)`;
   } else {
     rate = s.overrides.find((o) => o.level === form.level)?.rate ?? 0;
     label = `L${form.level} override @ ${(rate * 100).toFixed(2)}%`;
@@ -1175,21 +1207,21 @@ export function SimulatorPanel() {
     });
     setSaveDialog(false);
     setSaveForm({ agentId: "", customerName: "" });
-    toast.success("Draft invoice created — complete it in the Invoices tab.");
+    toast.success(t("sim_draft_created"));
   };
 
   return (
     <>
       <Section
-        title="Payout Simulator"
-        desc="Estimate your commission before closing a sale. No data is saved until you convert to invoice."
+        title={t("sim_panel_title")}
+        desc={t("sim_panel_desc")}
         action={
           <Button
             size="sm"
             className="bg-gradient-primary text-white hover:opacity-90 gap-1.5"
             onClick={() => setSaveDialog(true)}
           >
-            <Plus className="w-4 h-4" /> Save as Invoice
+            <Plus className="w-4 h-4" /> {t("sim_save_as_invoice")}
           </Button>
         }
       >
@@ -1197,7 +1229,7 @@ export function SimulatorPanel() {
           <Card className="p-5 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <Label>Sales amount</Label>
+                <Label>{t("lbl_sales_amount")}</Label>
                 <Input
                   type="number"
                   value={form.salesAmount}
@@ -1205,7 +1237,7 @@ export function SimulatorPanel() {
                 />
               </div>
               <div>
-                <Label>Product cost</Label>
+                <Label>{t("lbl_product_cost")}</Label>
                 <Input
                   type="number"
                   value={form.productCost}
@@ -1213,7 +1245,7 @@ export function SimulatorPanel() {
                 />
               </div>
               <div>
-                <Label>Finance company</Label>
+                <Label>{t("lbl_finance_co")}</Label>
                 <Select
                   value={form.financeCompanyId}
                   onValueChange={(v) => setForm({ ...form, financeCompanyId: v })}
@@ -1228,7 +1260,7 @@ export function SimulatorPanel() {
                 </Select>
               </div>
               <div>
-                <Label>Approval %</Label>
+                <Label>{t("lbl_approval_pct")}</Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -1237,14 +1269,14 @@ export function SimulatorPanel() {
                 />
               </div>
               <div>
-                <Label>Commission level</Label>
+                <Label>{t("lbl_commission_level")}</Label>
                 <Select
                   value={String(form.level)}
                   onValueChange={(v) => setForm({ ...form, level: Number(v) })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">Personal (own sale)</SelectItem>
+                    <SelectItem value="0">{t("sim_personal_own")}</SelectItem>
                     {s.overrides.slice().sort((a, b) => a.level - b.level).map((o) => (
                       <SelectItem key={o.level} value={String(o.level)}>
                         L{o.level} downline override
@@ -1254,7 +1286,7 @@ export function SimulatorPanel() {
                 </Select>
               </div>
               <div>
-                <Label>Extra charges</Label>
+                <Label>{t("sim_extra_charges_lbl")}</Label>
                 <Input
                   type="number"
                   value={form.extraCharges}
@@ -1262,7 +1294,7 @@ export function SimulatorPanel() {
                 />
               </div>
               <div>
-                <Label>Deductions</Label>
+                <Label>{t("sim_deductions_lbl")}</Label>
                 <Input
                   type="number"
                   value={form.deductions}
@@ -1270,7 +1302,7 @@ export function SimulatorPanel() {
                 />
               </div>
               <div>
-                <Label>Credits</Label>
+                <Label>{t("sim_credits_lbl")}</Label>
                 <Input
                   type="number"
                   value={form.credits}
@@ -1278,7 +1310,7 @@ export function SimulatorPanel() {
                 />
               </div>
               <div>
-                <Label>Tax reserve %</Label>
+                <Label>{t("lbl_tax_reserve_pct")}</Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -1294,20 +1326,20 @@ export function SimulatorPanel() {
               <Sparkles className="w-4 h-4 text-accent" /> Estimate
             </h3>
             <div className="space-y-1 text-sm">
-              <Row k="Approval amount" v={fmtMoney(approval, cur)} />
-              <Row k="Finance / extra charges" v={`- ${fmtMoney(totalCharges, cur)}`} />
-              <Row k="Credits" v={`+ ${fmtMoney(form.credits, cur)}`} />
-              <Row k="Grand total" v={fmtMoney(grand, cur)} bold />
-              <Row k="Product cost" v={`- ${fmtMoney(form.productCost, cur)}`} />
-              <Row k="Deductions" v={`- ${fmtMoney(form.deductions, cur)}`} />
-              <Row k="Profit (commission base)" v={fmtMoney(profit, cur)} bold />
+              <Row k={t("sim_approval_amount")} v={fmtMoney(approval, cur)} />
+              <Row k={t("sim_finance_fees_lbl")} v={`- ${fmtMoney(totalCharges, cur)}`} />
+              <Row k={t("sim_credits_row")} v={`+ ${fmtMoney(form.credits, cur)}`} />
+              <Row k={t("sim_grand_total")} v={fmtMoney(grand, cur)} bold />
+              <Row k={t("sim_product_cost_lbl")} v={`- ${fmtMoney(form.productCost, cur)}`} />
+              <Row k={t("sim_deductions_lbl")} v={`- ${fmtMoney(form.deductions, cur)}`} />
+              <Row k={t("sim_profit_base")} v={fmtMoney(profit, cur)} bold />
               <div className="border-t my-2" />
               <Row k={label} v={fmtMoney(commission, cur)} accent bold />
-              <Row k="Tax reserve" v={`- ${fmtMoney(taxReserve, cur)}`} />
-              <Row k="Estimated take-home" v={fmtMoney(net, cur)} accent bold />
+              <Row k={t("sim_tax_res_lbl")} v={`- ${fmtMoney(taxReserve, cur)}`} />
+              <Row k={t("sim_take_home")} v={fmtMoney(net, cur)} accent bold />
             </div>
             <p className="text-xs text-muted-foreground mt-4 italic">
-              Estimate only. Final payout depends on team performance, downline activity and actual approval.
+              {t("sim_footnote_full")}
             </p>
           </Card>
         </div>
@@ -1317,14 +1349,14 @@ export function SimulatorPanel() {
       <Dialog open={saveDialog} onOpenChange={(o) => { if (!o) setSaveDialog(false); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Save as Invoice Draft</DialogTitle>
+            <DialogTitle>{t("sim_draft_title")}</DialogTitle>
             <DialogDescription>
-              Creates a draft invoice with your simulator values. You can complete it in the Invoices tab.
+              {t("sim_draft_desc")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label>Sales rep (optional)</Label>
+              <Label>{t("sim_rep_optional")}</Label>
               <Select value={saveForm.agentId || "none"} onValueChange={(v) => setSaveForm({ ...saveForm, agentId: v === "none" ? "" : v })}>
                 <SelectTrigger><SelectValue placeholder="— None —" /></SelectTrigger>
                 <SelectContent>
@@ -1334,18 +1366,18 @@ export function SimulatorPanel() {
               </Select>
             </div>
             <div>
-              <Label>Customer name (optional)</Label>
+              <Label>{t("sim_customer_optional")}</Label>
               <Input
                 value={saveForm.customerName}
                 onChange={(e) => setSaveForm({ ...saveForm, customerName: e.target.value })}
-                placeholder="Customer name"
+                placeholder={t("lbl_customer")}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setSaveDialog(false)}>{t("btn_cancel")}</Button>
             <Button onClick={handleSaveAsInvoice} className="bg-gradient-primary text-white hover:opacity-90">
-              Create Draft
+              {t("sim_create_draft")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1387,48 +1419,50 @@ const INDUSTRY_ICONS: Record<string, string> = {
 };
 
 export function TemplatesPanel() {
+  const t = useT();
   const s = useStore();
+  const isEs = s.language === "es";
   const apply = (id: string) => {
-    const t = INDUSTRY_TEMPLATES.find((x) => x.id === id);
-    if (!t) return;
+    const tpl = INDUSTRY_TEMPLATES.find((x) => x.id === id);
+    if (!tpl) return;
     if (
       !confirm(
-        `Apply "${t.name}" kit? This will replace your tiers and overrides${
-          t.finance ? " and add a finance company" : ""
-        }.`
+        isEs
+          ? "Aplicar kit? Esto reemplazara el plan actual."
+          : "Apply this kit? This will replace your current plan."
       )
     )
       return;
-    s.applyTemplate(t);
-    toast.success(`${t.name} kit applied`);
+    s.applyTemplate(tpl);
+    toast.success(isEs ? `Kit "${tpl.name}" aplicado` : `${tpl.name} kit applied`);
   };
   return (
     <Section
-      title="Industry Launch Kits"
+      title={t("tab_templates")}
       desc="One-click presets for common commission models. Apply a kit to instantly configure tiers, overrides, and finance settings for your industry."
     >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {INDUSTRY_TEMPLATES.map((t) => (
-          <Card key={t.id} className="p-4">
+        {INDUSTRY_TEMPLATES.map((tpl) => (
+          <Card key={tpl.id} className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-xl shrink-0 select-none">
-                  {INDUSTRY_ICONS[t.id] ?? "🏢"}
+                  {INDUSTRY_ICONS[tpl.id] ?? "🏢"}
                 </div>
                 <div>
-                  <h3 className="font-semibold">{t.name}</h3>
-                  <p className="text-sm text-muted-foreground">{t.description}</p>
+                  <h3 className="font-semibold">{tpl.name}</h3>
+                  <p className="text-sm text-muted-foreground">{tpl.description}</p>
                 </div>
               </div>
-              <Button size="sm" className="shrink-0" onClick={() => apply(t.id)}>
-                Apply
+              <Button size="sm" className="shrink-0" onClick={() => apply(tpl.id)}>
+                {t("tpl_apply")}
               </Button>
             </div>
             <div className="mt-3 text-xs grid grid-cols-3 gap-2 text-muted-foreground">
               <div>
-                <span className="font-semibold text-foreground">Tiers</span>
+                <span className="font-semibold text-foreground">{t("tpl_tiers")}</span>
                 <ul className="mt-1">
-                  {t.tiers.map((tt, i) => (
+                  {tpl.tiers.map((tt, i) => (
                     <li key={i} className="font-mono">
                       ≥{tt.minVolume} → {(tt.rate * 100).toFixed(1)}%
                     </li>
@@ -1436,9 +1470,9 @@ export function TemplatesPanel() {
                 </ul>
               </div>
               <div>
-                <span className="font-semibold text-foreground">Overrides</span>
+                <span className="font-semibold text-foreground">{t("tpl_overrides")}</span>
                 <ul className="mt-1">
-                  {t.overrides.map((o) => (
+                  {tpl.overrides.map((o) => (
                     <li key={o.level} className="font-mono">
                       L{o.level} → {(o.rate * 100).toFixed(1)}%
                     </li>
@@ -1446,8 +1480,8 @@ export function TemplatesPanel() {
                 </ul>
               </div>
               <div>
-                <span className="font-semibold text-foreground">Finance</span>
-                <div className="mt-1">{t.finance ? t.finance.name : "—"}</div>
+                <span className="font-semibold text-foreground">{t("tpl_finance")}</span>
+                <div className="mt-1">{tpl.finance ? tpl.finance.name : "—"}</div>
               </div>
             </div>
           </Card>
@@ -1459,7 +1493,10 @@ export function TemplatesPanel() {
 
 /* ========== PAYOUT CALENDAR ========== */
 export function CalendarPanel() {
+  const t = useT();
   const s = useStore();
+  const isEs = s.language === "es";
+  void isEs;
   const isAdmin = s.role !== "rep";
   const myAgentId = !isAdmin ? s.activeAgentId : null;
   const cur = s.company.currency;
@@ -1497,12 +1534,12 @@ export function CalendarPanel() {
 
   return (
     <Section
-      title={isAdmin ? "Payout Calendar" : "My upcoming payouts"}
-      desc={isAdmin ? "Upcoming and past invoices grouped by date, with totals for the upcoming payout." : "Only your own invoices and payouts are shown."}
+      title={isAdmin ? t("cal_title") : t("cal_my_title")}
+      desc={isAdmin ? t("cal_desc") : t("cal_my_desc")}
       action={
         <div className="flex items-end gap-2">
           <div>
-            <Label className="text-xs">Next payout date</Label>
+            <Label className="text-xs">{t("cal_next_payout")}</Label>
             <Input
               type="date"
               value={s.nextPayoutDate}
@@ -1514,14 +1551,14 @@ export function CalendarPanel() {
       }
     >
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-        <Stat label="Next payout" value={s.nextPayoutDate} />
-        <Stat label="Pending profit" value={fmtMoney(totalPending, cur)} accent />
-        <Stat label="Paid profit" value={fmtMoney(totalPaid, cur)} />
-        <Stat label="Period payout total" value={fmtMoney(totalPayout, cur)} accent />
+        <Stat label={t("cal_stat_next")} value={s.nextPayoutDate} />
+        <Stat label={t("cal_stat_pending")} value={fmtMoney(totalPending, cur)} accent />
+        <Stat label={t("cal_stat_paid")} value={fmtMoney(totalPaid, cur)} />
+        <Stat label={t("cal_stat_period")} value={fmtMoney(totalPayout, cur)} accent />
       </div>
 
       {byDate.size === 0 ? (
-        <Empty msg="No invoices yet." />
+        <Empty msg={t("empty_no_invoices")} />
       ) : (
         <div className="space-y-3">
           {[...byDate.entries()]
@@ -1539,7 +1576,7 @@ export function CalendarPanel() {
                     <div className="flex items-center gap-3">
                       <div className="font-mono text-sm">{date}</div>
                       <Badge variant={allPaid ? "default" : anyApproved ? "secondary" : "outline"}>
-                        {allPaid ? "all paid" : anyApproved ? "approved" : "pending"}
+                        {allPaid ? t("cal_all_paid") : anyApproved ? t("cal_approved") : t("cal_pending")}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         {list.length} invoice(s)
