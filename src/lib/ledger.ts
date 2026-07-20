@@ -484,4 +484,143 @@ export function explainInvoice(
   return lines;
 }
 
+/* -------- AI Coach: month-over-month commission insight -------- */
+
+export type CoachInsight = {
+  kind: "positive" | "negative" | "neutral";
+  headline: string;
+  bullets: string[];
+};
+
+function monthRange(offsetMonths: number) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + offsetMonths;
+  const start = new Date(y, m, 1);
+  const end = offsetMonths === 0 ? now : new Date(y, m + 1, 0);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return { start: iso(start), end: iso(end) };
+}
+
+/** Rule-based insight comparing this agent's current-month commission
+ *  to last month, surfacing the most likely driver (low approval %,
+ *  pending advances, or downline override growth). Returns null when
+ *  there isn't enough data for a meaningful comparison. */
+export function computeCoachInsight(
+  agent: Agent,
+  agents: Agent[],
+  invoices: Invoice[],
+  financeCompanies: FinanceCompany[],
+  tiers: PersonalTier[],
+  overrides: OverrideLevel[],
+  lang: Lang = "en",
+  currency = "USD"
+): CoachInsight | null {
+  const isEs = lang === "es";
+  const cur = monthRange(0);
+  const prev = monthRange(-1);
+  const inRange = (d: string, r: { start: string; end: string }) => d >= r.start && d <= r.end;
+
+  const curInvoices = invoices.filter((i) => inRange(i.date, cur));
+  const prevInvoices = invoices.filter((i) => inRange(i.date, prev));
+
+  const curPayouts = calcPayouts(agents, curInvoices, financeCompanies, tiers, overrides);
+  const prevPayouts = calcPayouts(agents, prevInvoices, financeCompanies, tiers, overrides);
+  const curP = curPayouts.find((p) => p.agent.id === agent.id);
+  const prevP = prevPayouts.find((p) => p.agent.id === agent.id);
+  if (!curP || !prevP) return null;
+
+  const curTotal = curP.personalCommission + curP.overrideTotal;
+  const prevTotal = prevP.personalCommission + prevP.overrideTotal;
+  if (prevTotal <= 0) return null;
+
+  const pctChange = (curTotal - prevTotal) / prevTotal;
+  const pct = (n: number) => `${Math.abs(Math.round(n * 100))}%`;
+  const m = (n: number) => fmtMoney(n, currency);
+
+  if (pctChange <= -0.03) {
+    const lowApproval = curP.invoices.filter((c) => c.invoice.approvalPercent < 0.9);
+    const pendingAdvance = curP.invoices.reduce(
+      (s, c) => s + (c.invoice.pendingAdvanceBalance || 0),
+      0
+    );
+    const bullets: string[] = [];
+    if (lowApproval.length > 0) {
+      const avgApproval =
+        lowApproval.reduce((s, c) => s + c.invoice.approvalPercent, 0) / lowApproval.length;
+      bullets.push(
+        isEs
+          ? `Tienes ${lowApproval.length} venta${lowApproval.length > 1 ? "s" : ""} con Approval del ${pct(avgApproval)}.`
+          : `You have ${lowApproval.length} sale${lowApproval.length > 1 ? "s" : ""} with Approval at ${pct(avgApproval)}.`
+      );
+    }
+    if (pendingAdvance > 0) {
+      bullets.push(
+        isEs
+          ? `También tienes un advance pendiente de ${m(pendingAdvance)}.`
+          : `You also have a pending advance of ${m(pendingAdvance)}.`
+      );
+    }
+    if (bullets.length === 0) {
+      bullets.push(
+        isEs
+          ? "Revisa tus invoices recientes para más detalle."
+          : "Review your recent invoices for more detail."
+      );
+    } else {
+      bullets.push(
+        isEs ? "Te recomiendo revisar estos invoices." : "I recommend reviewing these invoices."
+      );
+    }
+    return {
+      kind: "negative",
+      headline: isEs
+        ? `Tu comisión bajó este mes un ${pct(pctChange)}.`
+        : `Your commission dropped ${pct(pctChange)} this month.`,
+      bullets,
+    };
+  }
+
+  if (pctChange >= 0.03) {
+    const overrideGrowth =
+      prevP.overrideTotal > 0
+        ? (curP.overrideTotal - prevP.overrideTotal) / prevP.overrideTotal
+        : curP.overrideTotal > 0
+          ? 1
+          : 0;
+    const downlineIds = new Set(curP.downline.map((d) => d.agent.id));
+    const downlineNewSales = curInvoices.filter((i) => downlineIds.has(i.agentId)).length;
+
+    if (overrideGrowth > 0 && curP.overrideTotal > 0) {
+      const bullets = [
+        isEs ? "Buen trabajo." : "Good work.",
+      ];
+      if (downlineNewSales > 0) {
+        bullets.push(
+          isEs
+            ? `Tu downline generó ${downlineNewSales} nueva${downlineNewSales > 1 ? "s" : ""} venta${downlineNewSales > 1 ? "s" : ""}.`
+            : `Your downline generated ${downlineNewSales} new sale${downlineNewSales > 1 ? "s" : ""}.`
+        );
+      }
+      return {
+        kind: "positive",
+        headline: isEs
+          ? `Notamos que tus overrides crecieron un ${pct(overrideGrowth)}.`
+          : `We noticed your overrides grew ${pct(overrideGrowth)}.`,
+        bullets,
+      };
+    }
+
+    return {
+      kind: "positive",
+      headline: isEs
+        ? `Tu comisión subió este mes un ${pct(pctChange)}.`
+        : `Your commission is up ${pct(pctChange)} this month.`,
+      bullets: [isEs ? "Sigue así." : "Keep it up."],
+    };
+  }
+
+  return null;
+}
+
 export { calcInvoice };

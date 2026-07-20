@@ -40,6 +40,7 @@ export type Product = {
   priceEditable: boolean;
   active: boolean;
   notes: string;
+  photoUrl?: string; // base64 data URL thumbnail
 };
 
 export type Invoice = {

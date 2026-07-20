@@ -21,9 +21,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Wallet, FileDown, Sparkles, Paperclip, X } from "lucide-react";
+import { Plus, Trash2, Wallet, FileDown, Sparkles, Paperclip, X, TrendingDown, TrendingUp, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useStore, type Invoice } from "@/lib/commission-store";
+import { useStore, type Invoice, type Agent } from "@/lib/commission-store";
 import {
   calcInvoice,
   calcPayouts,
@@ -31,6 +31,7 @@ import {
 } from "@/lib/commission-calc";
 import {
   buildAllWallets,
+  computeCoachInsight,
   type AgentWallet,
   type LedgerEntry,
 } from "@/lib/ledger";
@@ -97,10 +98,58 @@ function fmtDate(iso: string) {
   }
 }
 
+/* ========== AI COACH ========== */
+function AICoachCard({ agent }: { agent: Agent }) {
+  const s = useStore();
+  const insight = useMemo(
+    () =>
+      computeCoachInsight(
+        agent,
+        s.agents,
+        s.invoices,
+        s.financeCompanies,
+        s.personalTiers,
+        s.overrides,
+        s.language,
+        s.company.currency
+      ),
+    [agent, s.agents, s.invoices, s.financeCompanies, s.personalTiers, s.overrides, s.language, s.company.currency]
+  );
+  if (!insight) return null;
+  const Icon = insight.kind === "negative" ? TrendingDown : insight.kind === "positive" ? TrendingUp : Sparkles;
+  const tone =
+    insight.kind === "negative"
+      ? { border: "border-l-amber-500", bg: "bg-amber-500/5", chip: "bg-amber-500/10 text-amber-600" }
+      : insight.kind === "positive"
+        ? { border: "border-l-emerald-500", bg: "bg-emerald-500/5", chip: "bg-emerald-500/10 text-emerald-600" }
+        : { border: "border-l-primary", bg: "bg-primary/5", chip: "bg-primary/10 text-primary" };
+  return (
+    <Card className={cn("p-4 border-l-4", tone.border, tone.bg)}>
+      <div className="flex items-start gap-3">
+        <div className={cn("shrink-0 rounded-full p-2", tone.chip)}>
+          <Icon className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+            <Sparkles className="w-3 h-3" /> AI Coach
+          </div>
+          <p className="font-medium text-sm">{insight.headline}</p>
+          <ul className="mt-1 space-y-0.5">
+            {insight.bullets.map((b, i) => (
+              <li key={i} className="text-sm text-muted-foreground">{b}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 /* ========== WALLET PANEL ========== */
 export function WalletPanel() {
   const t = useT();
   const s = useStore();
+  const isEs = s.language === "es";
   const isAdmin = s.role !== "rep";
   const myAgentId = !isAdmin ? s.activeAgentId : null;
   const wallets = useMemo(
@@ -122,6 +171,22 @@ export function WalletPanel() {
 
   const current = visibleWallets.find((w) => w.agent.id === selected) || visibleWallets[0];
 
+  const readiness = useMemo(() => {
+    if (!isAdmin || s.agents.length === 0) return null;
+    let ready = 0, missingW9 = 0, pendingReview = 0;
+    for (const a of s.agents) {
+      const hasActiveRequest = s.disputes.some(
+        (d) =>
+          d.agentId === a.id &&
+          (d.status === "submitted" || d.status === "under_review" || d.status === "needs_info")
+      );
+      if (hasActiveRequest) pendingReview++;
+      else if ((a.w9Status ?? "missing") !== "valid") missingW9++;
+      else ready++;
+    }
+    return { ready, missingW9, pendingReview };
+  }, [isAdmin, s.agents, s.disputes]);
+
   if (!visibleWallets.length) {
     return (
       <Section title={isAdmin ? t("wallet_title") : t("wallet_my_title")} desc={t("wallet_desc")}>
@@ -132,6 +197,26 @@ export function WalletPanel() {
 
   return (
     <div className="space-y-6">
+      {readiness && (
+        <div className="flex flex-wrap gap-2">
+          <div className="inline-flex items-center gap-1.5 text-sm bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-1.5 rounded-md">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span className="font-semibold">{readiness.ready}</span>
+            <span>{isEs ? "Listos" : "Ready"}</span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 text-sm bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-md">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span className="font-semibold">{readiness.missingW9}</span>
+            <span>{isEs ? "Falta W-9" : "Missing W-9"}</span>
+          </div>
+          <div className="inline-flex items-center gap-1.5 text-sm bg-blue-500/10 text-blue-700 dark:text-blue-400 px-3 py-1.5 rounded-md">
+            <Clock className="w-3.5 h-3.5" />
+            <span className="font-semibold">{readiness.pendingReview}</span>
+            <span>{isEs ? "En revisión" : "Pending Review"}</span>
+          </div>
+        </div>
+      )}
+      {current && <AICoachCard agent={current.agent} />}
       <Section
         title={isAdmin ? t("wallet_title") : t("wallet_my_title")}
         desc={t("wallet_desc")}

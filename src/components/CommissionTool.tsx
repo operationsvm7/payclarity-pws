@@ -13,7 +13,7 @@ import {
   Wallet, Calculator, CalendarDays, BookTemplate, MessageSquare, HelpCircle, Shield, UserRound,
   LayoutDashboard, FileBarChart, FileSpreadsheet, Languages, Wand2, Settings2, Upload, Package,
   Split as SplitIcon, Activity, LogOut, ChevronDown, Users2, ShieldAlert, ArrowRight, ChevronLeft,
-  Moon, Sun, Search,
+  Moon, Sun, Search, Image as ImageIcon,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
@@ -2074,7 +2074,8 @@ function GeneratePanel({ payouts }: { payouts: ReturnType<typeof calcPayouts> })
 
 function ProductsPanel() {
   const s = useStore();
-  const blank = { name: "", sku: "", kind: "product" as const, price: 0, cost: 0, priceEditable: true, active: true, notes: "" };
+  const isEs = s.language === "es";
+  const blank = { name: "", sku: "", kind: "product" as const, price: 0, cost: 0, priceEditable: true, active: true, notes: "", photoUrl: "" };
   const [draft, setDraft] = useState(blank);
   const t = useT();
   const add = () => {
@@ -2082,6 +2083,16 @@ function ProductsPanel() {
     s.addProduct(draft);
     setDraft(blank);
     toast.success(t("success_product_added"));
+  };
+  const readPhoto = (file: File | undefined | null, onDone: (dataUrl: string) => void) => {
+    if (!file) return;
+    if (file.size > 1024 * 1024) {
+      toast.error(isEs ? "La imagen es muy grande (máx 1MB)." : "Image is too large (max 1MB).");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onDone(String(reader.result || ""));
+    reader.readAsDataURL(file);
   };
   return (
     <div className="space-y-6">
@@ -2094,6 +2105,25 @@ function ProductsPanel() {
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div>
+            <Label className="text-xs">{isEs ? "Foto" : "Photo"}</Label>
+            <label className="mt-1 w-10 h-10 rounded-md border border-dashed border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50">
+              {draft.photoUrl ? (
+                <img src={draft.photoUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <ImageIcon className="w-4 h-4 text-muted-foreground" />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  readPhoto(e.target.files?.[0], (url) => setDraft((d) => ({ ...d, photoUrl: url })));
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          </div>
           <div className="md:col-span-2">
             <Label className="text-xs">{t("lbl_name")} *</Label>
             <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. Premium Plan" />
@@ -2150,6 +2180,7 @@ function ProductsPanel() {
             <table className="w-full text-sm">
               <thead className="text-xs text-muted-foreground">
                 <tr className="border-b">
+                  <th className="text-left p-2">{isEs ? "Foto" : "Photo"}</th>
                   <th className="text-left p-2">{t("lbl_name")}</th>
                   <th className="text-left p-2">{t("th_sku")}</th>
                   <th className="text-left p-2">{t("lbl_type")}</th>
@@ -2163,6 +2194,24 @@ function ProductsPanel() {
               <tbody>
                 {s.products.map((p) => (
                   <tr key={p.id} className="border-b">
+                    <td className="p-2">
+                      <label className="block w-9 h-9 rounded-md border border-dashed border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary/50">
+                        {p.photoUrl ? (
+                          <img src={p.photoUrl} alt={p.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            readPhoto(e.target.files?.[0], (url) => s.updateProduct(p.id, { photoUrl: url }));
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    </td>
                     <td className="p-2"><Input value={p.name} onChange={(e) => s.updateProduct(p.id, { name: e.target.value })} /></td>
                     <td className="p-2"><Input value={p.sku} onChange={(e) => s.updateProduct(p.id, { sku: e.target.value })} /></td>
                     <td className="p-2">
