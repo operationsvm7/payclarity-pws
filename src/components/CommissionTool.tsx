@@ -1093,12 +1093,11 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
                     </Select>
                   </td>
                   <td>
-                    <Input
+                    <PercentField
                       className="h-8 w-20"
-                      type="number"
                       step="0.1"
-                      value={((a.taxReservePercent ?? 0.2) * 100).toFixed(1)}
-                      onChange={(e) => updateAgent(a.id, { taxReservePercent: Number(e.target.value) / 100 })}
+                      value={a.taxReservePercent ?? 0.2}
+                      onChange={(n) => updateAgent(a.id, { taxReservePercent: n })}
                     />
                   </td>
                   <td>
@@ -1140,13 +1139,13 @@ function FinancePanel() {
           <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Goodleap" />
         </div>
         <div><Label>{t("lbl_fee_pct")}</Label>
-          <Input type="number" step="0.1" value={form.defaultFee * 100} onChange={(e) => setForm({ ...form, defaultFee: Number(e.target.value) / 100 })} />
+          <PercentField step="0.1" value={form.defaultFee} onChange={(n) => setForm({ ...form, defaultFee: n })} />
         </div>
         <div><Label>{t("lbl_dealer_fee_lbl")}</Label>
-          <Input type="number" step="0.01" value={form.dealerFee} onChange={(e) => setForm({ ...form, dealerFee: Number(e.target.value) })} />
+          <NumField step="0.01" value={form.dealerFee} onChange={(n) => setForm({ ...form, dealerFee: n })} />
         </div>
         <div><Label>{t("lbl_admin_fee_lbl")}</Label>
-          <Input type="number" step="0.01" value={form.adminFee} onChange={(e) => setForm({ ...form, adminFee: Number(e.target.value) })} />
+          <NumField step="0.01" value={form.adminFee} onChange={(n) => setForm({ ...form, adminFee: n })} />
         </div>
         <div className="flex items-end"><Button onClick={submit} className="w-full"><Plus className="w-4 h-4 mr-2" />{t("btn_add")}</Button></div>
       </div>
@@ -1160,16 +1159,16 @@ function FinancePanel() {
                   <Input value={f.name} onChange={(e) => updateFinanceCo(f.id, { name: e.target.value })} />
                 </div>
                 <div><Label className="text-xs">{t("lbl_fee_pct")}</Label>
-                  <Input type="number" step="0.1" value={(f.defaultFee * 100).toFixed(2)}
-                    onChange={(e) => updateFinanceCo(f.id, { defaultFee: Number(e.target.value) / 100 })} />
+                  <PercentField step="0.1" value={f.defaultFee}
+                    onChange={(n) => updateFinanceCo(f.id, { defaultFee: n })} />
                 </div>
                 <div><Label className="text-xs">{t("lbl_dealer_fee_lbl")}</Label>
-                  <Input type="number" step="0.01" value={f.dealerFee}
-                    onChange={(e) => updateFinanceCo(f.id, { dealerFee: Number(e.target.value) })} />
+                  <NumField step="0.01" value={f.dealerFee}
+                    onChange={(n) => updateFinanceCo(f.id, { dealerFee: n })} />
                 </div>
                 <div><Label className="text-xs">{t("lbl_admin_fee_lbl")}</Label>
-                  <Input type="number" step="0.01" value={f.adminFee}
-                    onChange={(e) => updateFinanceCo(f.id, { adminFee: Number(e.target.value) })} />
+                  <NumField step="0.01" value={f.adminFee}
+                    onChange={(n) => updateFinanceCo(f.id, { adminFee: n })} />
                 </div>
                 <div className="flex items-center gap-2">
                   <Switch checked={f.active} onCheckedChange={(v) => updateFinanceCo(f.id, { active: v })} />
@@ -1826,7 +1825,7 @@ function LineEditor({
         {rows.map((r, i) => (
           <div key={i} className="grid grid-cols-[1fr_140px_auto] gap-2">
             <Input value={r.label} placeholder={t("lbl_description")} onChange={(e) => onChange(i, "label", e.target.value)} />
-            <Input type="number" step="0.01" value={r.amount} onChange={(e) => onChange(i, "amount", e.target.value)} />
+            <NumField step="0.01" value={r.amount} onChange={(n) => onChange(i, "amount", String(n))} />
             <Button variant="ghost" size="icon" onClick={() => onRemove(i)}><Trash2 className="w-4 h-4" /></Button>
           </div>
         ))}
@@ -1981,20 +1980,20 @@ function PlanPanel() {
                   </div>
                   <div className="grid md:grid-cols-4 gap-3">
                     <div><Label className="text-xs">{t("lbl_commission_pct")}</Label>
-                      <Input type="number" step="0.1" value={(p.commissionPercent * 100).toFixed(2)}
-                        onChange={(e) => updatePosition(p.id, { commissionPercent: Number(e.target.value) / 100 })} />
+                      <PercentField step="0.1" value={p.commissionPercent}
+                        onChange={(n) => updatePosition(p.id, { commissionPercent: n })} />
                     </div>
                     <div><Label className="text-xs">{t("lbl_fixed_payout")} ({company.currency})</Label>
-                      <Input type="number" value={p.fixedPayout}
-                        onChange={(e) => updatePosition(p.id, { fixedPayout: Number(e.target.value) })} />
+                      <NumField value={p.fixedPayout}
+                        onChange={(n) => updatePosition(p.id, { fixedPayout: n })} />
                     </div>
                     <div><Label className="text-xs">{t("lbl_diff_override")}</Label>
-                      <Input type="number" step="0.1" value={(p.differentialOverridePercent * 100).toFixed(2)}
-                        onChange={(e) => updatePosition(p.id, { differentialOverridePercent: Number(e.target.value) / 100 })} />
+                      <PercentField step="0.1" value={p.differentialOverridePercent}
+                        onChange={(n) => updatePosition(p.id, { differentialOverridePercent: n })} />
                     </div>
                     <div><Label className="text-xs">{t("lbl_split_default")}</Label>
-                      <Input type="number" step="1" value={(p.splitDefaultPercent * 100).toFixed(0)}
-                        onChange={(e) => updatePosition(p.id, { splitDefaultPercent: Number(e.target.value) / 100 })} />
+                      <PercentField step="1" value={p.splitDefaultPercent}
+                        onChange={(n) => updatePosition(p.id, { splitDefaultPercent: n })} />
                     </div>
                     <div><Label className="text-xs">{t("lbl_effective_from")}</Label>
                       <Input type="date" value={p.effectiveFrom}
@@ -2005,12 +2004,12 @@ function PlanPanel() {
                         onChange={(e) => updatePosition(p.id, { effectiveTo: e.target.value })} />
                     </div>
                     <div><Label className="text-xs">{t("lbl_min_approval")}</Label>
-                      <Input type="number" step="1" value={(p.minApprovalPercent * 100).toFixed(0)}
-                        onChange={(e) => updatePosition(p.id, { minApprovalPercent: Number(e.target.value) / 100 })} />
+                      <PercentField step="1" value={p.minApprovalPercent}
+                        onChange={(n) => updatePosition(p.id, { minApprovalPercent: n })} />
                     </div>
                     <div><Label className="text-xs">{t("lbl_special_deduction_pct")}</Label>
-                      <Input type="number" step="0.1" value={(p.specialDeductionPercent * 100).toFixed(2)}
-                        onChange={(e) => updatePosition(p.id, { specialDeductionPercent: Number(e.target.value) / 100 })} />
+                      <PercentField step="0.1" value={p.specialDeductionPercent}
+                        onChange={(n) => updatePosition(p.id, { specialDeductionPercent: n })} />
                     </div>
                     <div className="md:col-span-2"><Label className="text-xs">{t("lbl_finance_rule")}</Label>
                       <Select value={p.financeCompanyId ?? "__all__"}
@@ -2053,11 +2052,10 @@ function PlanPanel() {
             {personalTiers.map((tier, i) => (
               <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
                 <div><Label className="text-xs">{t("lbl_min_profit")}</Label>
-                  <Input type="number" value={tier.minVolume} onChange={(e) => updTier(i, "minVolume", Number(e.target.value))} />
+                  <NumField value={tier.minVolume} onChange={(n) => updTier(i, "minVolume", n)} />
                 </div>
                 <div><Label className="text-xs">{t("lbl_rate_pct")}</Label>
-                  <Input type="number" step="0.1" value={(tier.rate * 100).toFixed(2)}
-                    onChange={(e) => updTier(i, "rate", Number(e.target.value) / 100)} />
+                  <PercentField step="0.1" value={tier.rate} onChange={(n) => updTier(i, "rate", n)} />
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setPersonalTiers(personalTiers.filter((_, j) => j !== i))}>
                   <Trash2 className="w-4 h-4" />
@@ -2084,11 +2082,10 @@ function PlanPanel() {
             {overrides.map((o, i) => (
               <div key={i} className="grid grid-cols-[100px_1fr_auto] gap-3 items-end">
                 <div><Label className="text-xs">{t("lbl_level")}</Label>
-                  <Input type="number" min={1} value={o.level} onChange={(e) => updOv(i, "level", Number(e.target.value))} />
+                  <NumField value={o.level} onChange={(n) => updOv(i, "level", n)} />
                 </div>
                 <div><Label className="text-xs">{t("lbl_rate_pct")}</Label>
-                  <Input type="number" step="0.1" value={(o.rate * 100).toFixed(2)}
-                    onChange={(e) => updOv(i, "rate", Number(e.target.value) / 100)} />
+                  <PercentField step="0.1" value={o.rate} onChange={(n) => updOv(i, "rate", n)} />
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setOverrides(overrides.filter((_, j) => j !== i))}>
                   <Trash2 className="w-4 h-4" />
@@ -2123,16 +2120,16 @@ function PlanPanel() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label className="text-xs">{t("lbl_sales_amount")}</Label>
-                    <Input type="number" value={sim.salesAmount}
-                      onChange={(e) => setSim({ ...sim, salesAmount: Number(e.target.value) })} />
+                    <NumField value={sim.salesAmount}
+                      onChange={(n) => setSim({ ...sim, salesAmount: n })} />
                   </div>
                   <div><Label className="text-xs">{t("lbl_product_cost")}</Label>
-                    <Input type="number" value={sim.productCost}
-                      onChange={(e) => setSim({ ...sim, productCost: Number(e.target.value) })} />
+                    <NumField value={sim.productCost}
+                      onChange={(n) => setSim({ ...sim, productCost: n })} />
                   </div>
                   <div><Label className="text-xs">{t("lbl_approval_pct")}</Label>
-                    <Input type="number" step="1" value={(sim.approvalPercent * 100).toFixed(0)}
-                      onChange={(e) => setSim({ ...sim, approvalPercent: Number(e.target.value) / 100 })} />
+                    <PercentField step="1" value={sim.approvalPercent}
+                      onChange={(n) => setSim({ ...sim, approvalPercent: n })} />
                   </div>
                   <div><Label className="text-xs">{t("lbl_finance_co")}</Label>
                     <Select value={sim.financeCompanyId || "__none__"}
@@ -2437,11 +2434,11 @@ function ProductsPanel() {
           </div>
           <div>
             <Label className="text-xs">{t("lbl_price")}</Label>
-            <Input type="number" value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} />
+            <NumField step="0.01" value={draft.price} onChange={(n) => setDraft({ ...draft, price: n })} />
           </div>
           <div>
             <Label className="text-xs">{t("lbl_cost")}</Label>
-            <Input type="number" value={draft.cost} onChange={(e) => setDraft({ ...draft, cost: Number(e.target.value) })} />
+            <NumField step="0.01" value={draft.cost} onChange={(n) => setDraft({ ...draft, cost: n })} />
           </div>
           <div className="md:col-span-5 flex items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
@@ -2516,8 +2513,8 @@ function ProductsPanel() {
                         </SelectContent>
                       </Select>
                     </td>
-                    <td className="p-2"><Input type="number" className="text-right" value={p.price} onChange={(e) => s.updateProduct(p.id, { price: Number(e.target.value) })} /></td>
-                    <td className="p-2"><Input type="number" className="text-right" value={p.cost} onChange={(e) => s.updateProduct(p.id, { cost: Number(e.target.value) })} /></td>
+                    <td className="p-2"><NumField step="0.01" className="text-right" value={p.price} onChange={(n) => s.updateProduct(p.id, { price: n })} /></td>
+                    <td className="p-2"><NumField step="0.01" className="text-right" value={p.cost} onChange={(n) => s.updateProduct(p.id, { cost: n })} /></td>
                     <td className="p-2 text-center"><Switch checked={p.priceEditable} onCheckedChange={(v) => s.updateProduct(p.id, { priceEditable: v })} /></td>
                     <td className="p-2 text-center"><Switch checked={p.active} onCheckedChange={(v) => s.updateProduct(p.id, { active: v })} /></td>
                     <td className="p-2 text-right">
