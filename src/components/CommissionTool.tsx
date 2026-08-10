@@ -889,6 +889,7 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
   const t = useT();
   const isEs = language === "es";
   const [form, setForm] = useState({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
+  const [formCommissionMode, setFormCommissionMode] = useState<"percent" | "fixed">("percent");
 
   const readiness = useMemo(() => {
     if (agents.length === 0) return null;
@@ -910,17 +911,21 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
     if (!form.name.trim()) return toast.error(t("err_name_required"));
     if (!form.email.trim()) return toast.error(t("err_email_required"));
     // Sponsor is optional — the top of the tree (first rep / owner) has no upline.
-    const pctRaw = form.commissionPercent.trim();
-    if (pctRaw === "" || isNaN(Number(pctRaw))) return toast.error(t("err_commission_required"));
+    const valRaw = form.commissionPercent.trim();
+    if (valRaw === "" || isNaN(Number(valRaw))) return toast.error(t("err_commission_required"));
     if (!form.level.trim()) return toast.error(t("err_level_required"));
     addAgent({
       name: form.name.trim(),
       email: form.email.trim(),
       sponsorId: form.sponsorId || null,
-      commissionPercent: Number(pctRaw) / 100,
+      commissionMode: formCommissionMode,
+      ...(formCommissionMode === "fixed"
+        ? { fixedCommissionAmount: Number(valRaw), commissionPercent: undefined }
+        : { commissionPercent: Number(valRaw) / 100, fixedCommissionAmount: undefined }),
       level: form.level.trim(),
     });
     setForm({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
+    setFormCommissionMode("percent");
     toast.success(t("success_rep_added"));
   };
 
@@ -966,7 +971,22 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
           </Select>
         </div>
         <div><Label>{t("lbl_commission_pct")} *</Label>
-          <Input type="number" step="0.1" value={form.commissionPercent} onChange={(e) => setForm({ ...form, commissionPercent: e.target.value })} placeholder="8" />
+          <div className="flex gap-1">
+            <Select value={formCommissionMode} onValueChange={(v: "percent" | "fixed") => setFormCommissionMode(v)}>
+              <SelectTrigger className="w-14 shrink-0"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percent">%</SelectItem>
+                <SelectItem value="fixed">$</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="number"
+              step={formCommissionMode === "fixed" ? "1" : "0.1"}
+              value={form.commissionPercent}
+              onChange={(e) => setForm({ ...form, commissionPercent: e.target.value })}
+              placeholder={formCommissionMode === "fixed" ? (isEs ? "por invoice" : "per invoice") : "8"}
+            />
+          </div>
         </div>
         <div><Label>{t("lbl_level")} *</Label>
           <Select value={form.level || "none"} onValueChange={(v) => setForm({ ...form, level: v === "none" ? "" : v })}>
