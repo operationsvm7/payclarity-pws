@@ -1288,6 +1288,7 @@ function InvoicesPanel() {
   const [overridePercentText, setOverridePercentText] = useState("");
   const [overrideAmountText, setOverrideAmountText] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
+  const selectedProduct = s.products.find((p) => p.id === selectedProductId) ?? null;
 
   const live = useMemo(() => calcInvoice({ ...(draft as Invoice), id: "tmp", number: "—" }, s.financeCompanies), [draft, s.financeCompanies]);
 
@@ -1438,7 +1439,7 @@ function InvoicesPanel() {
                 setSelectedProductId(v === "none" ? "" : v);
                 if (v === "none") return;
                 const p = s.products.find((x) => x.id === v);
-                if (p) setDraft({ ...draft, productCost: p.cost });
+                if (p) setDraft({ ...draft, productCost: p.cost, salesAmount: p.price });
               }}
             >
               <SelectTrigger><SelectValue placeholder={s.language === "es" ? "Elegir producto…" : "Pick a product…"} /></SelectTrigger>
@@ -1452,8 +1453,20 @@ function InvoicesPanel() {
               </SelectContent>
             </Select>
           </div>
-          <div><Label>{t("lbl_sales_amount")}</Label>
-            <NumField step="0.01" value={draft.salesAmount} onChange={(n) => setDraft({ ...draft, salesAmount: n })} />
+          <div><Label>
+              {t("lbl_sales_amount")}
+              {selectedProduct && selectedProduct.priceEditable === false && (
+                <span className="text-xs text-muted-foreground font-normal ml-1">
+                  ({s.language === "es" ? "precio fijo del producto" : "fixed product price"})
+                </span>
+              )}
+            </Label>
+            <NumField
+              step="0.01"
+              value={draft.salesAmount}
+              onChange={(n) => setDraft({ ...draft, salesAmount: n })}
+              disabled={!!selectedProduct && selectedProduct.priceEditable === false}
+            />
           </div>
           <div><Label>{t("lbl_product_cost")}</Label>
             <NumField step="0.01" value={draft.productCost} onChange={(n) => setDraft({ ...draft, productCost: n })} />
@@ -2435,6 +2448,9 @@ function ProductsPanel() {
           <div>
             <Label className="text-xs">{t("lbl_price")}</Label>
             <NumField step="0.01" value={draft.price} onChange={(n) => setDraft({ ...draft, price: n })} />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {isEs ? "Lo que le cobras al cliente." : "What you charge the customer."}
+            </p>
           </div>
           <div>
             <Label className="text-xs">{t("lbl_cost")}</Label>
