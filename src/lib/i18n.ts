@@ -33,7 +33,6 @@ const D: Dict = {
   role_admin: { es: "Admin", en: "Admin" },
   role_rep: { es: "Vendedor", en: "Sales rep" },
   role_accountant: { es: "Contador", en: "Accountant" },
-  select_rep: { es: "Selecciona vendedor", en: "Select rep" },
   stat_salespeople: { es: "Vendedores", en: "Salespeople" },
   stat_sales_total: { es: "Ventas totales", en: "Sales total" },
   stat_payout: { es: "A pagar", en: "Payout" },

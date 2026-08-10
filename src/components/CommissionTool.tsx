@@ -394,11 +394,14 @@ export default function CommissionTool() {
   const totalPayout = payouts.reduce((a, c) => a + c.grossPayout, 0);
   const totalSales = s.invoices.reduce((a, x) => a + Number(x.salesAmount || 0), 0);
 
+  // A rep's agent record is linked automatically by the backend (matching
+  // login email); never fall back to "the first agent" — that would show
+  // someone else's data to a rep whose account isn't linked yet.
   const effectiveAgentId =
     isRep
       ? s.activeAgentId && s.agents.some((a) => a.id === s.activeAgentId)
         ? s.activeAgentId
-        : s.agents[0]?.id ?? null
+        : null
       : null;
 
   return (
@@ -488,18 +491,11 @@ export default function CommissionTool() {
 
             <NotificationsBell />
 
-            {/* Rep selector – full width under header on mobile */}
-            {isRep && (
-              <Select value={effectiveAgentId || ""} onValueChange={(v) => s.setActiveAgentId(v)}>
-                <SelectTrigger className="h-9 w-[130px] sm:w-[160px]">
-                  <SelectValue placeholder={t("select_rep")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {s.agents.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Reps only ever see their own linked agent — no switching. */}
+            {isRep && effectiveAgentId && (
+              <span className="h-9 px-3 inline-flex items-center rounded-lg border border-border/60 bg-background/80 text-sm font-medium truncate max-w-[160px]">
+                {s.agents.find((a) => a.id === effectiveAgentId)?.name ?? ""}
+              </span>
             )}
 
             {/* User menu */}
