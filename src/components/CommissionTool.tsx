@@ -1416,29 +1416,27 @@ function InvoicesPanel() {
             </Select>
           </div>
 
-          {s.products.length > 0 && (
-            <div><Label>{s.language === "es" ? "Producto" : "Product"}</Label>
-              <Select
-                value={selectedProductId || "none"}
-                onValueChange={(v) => {
-                  setSelectedProductId(v === "none" ? "" : v);
-                  if (v === "none") return;
-                  const p = s.products.find((x) => x.id === v);
-                  if (p) setDraft({ ...draft, productCost: p.cost });
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder={s.language === "es" ? "Elegir producto…" : "Pick a product…"} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— {s.language === "es" ? "Ninguno" : "None"} —</SelectItem>
-                  {s.products.filter((p) => p.active).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} — {fmtMoney(p.cost, s.company.currency)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div><Label>{s.language === "es" ? "Producto" : "Product"}</Label>
+            <Select
+              value={selectedProductId || "none"}
+              onValueChange={(v) => {
+                setSelectedProductId(v === "none" ? "" : v);
+                if (v === "none") return;
+                const p = s.products.find((x) => x.id === v);
+                if (p) setDraft({ ...draft, productCost: p.cost });
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder={s.language === "es" ? "Elegir producto…" : "Pick a product…"} /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">— {s.language === "es" ? "Ninguno" : "None"} —</SelectItem>
+                {s.products.filter((p) => p.active).map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name} — {fmtMoney(p.cost, s.company.currency)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div><Label>{t("lbl_sales_amount")}</Label>
             <NumField step="0.01" value={draft.salesAmount} onChange={(n) => setDraft({ ...draft, salesAmount: n })} />
           </div>
