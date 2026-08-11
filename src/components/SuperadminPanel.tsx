@@ -841,7 +841,10 @@ export default function SuperadminPanel() {
               <Label>Código de invitación</Label>
               <Input
                 value={createForm.invite_code}
-                onChange={(e) => setCreateForm({ ...createForm, invite_code: e.target.value.toUpperCase() })}
+                onChange={(e) => setCreateForm({
+                  ...createForm,
+                  invite_code: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8),
+                })}
                 placeholder="Auto-generado si se deja vacío"
                 className="font-mono"
               />
