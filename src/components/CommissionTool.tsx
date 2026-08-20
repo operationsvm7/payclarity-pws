@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ComponentProps } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ComponentProps } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1857,6 +1857,20 @@ function PlanPanel() {
   const tierErrs = validateTiers(personalTiers);
   const ovErrs = validateOverrides(overrides);
   const t = useT();
+  const isEs = language === "es";
+  const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!justAddedId) return;
+    const el = nameInputRefs.current[justAddedId];
+    if (el) {
+      el.focus();
+      el.select();
+    }
+    setJustAddedId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [justAddedId]);
 
   const updTier = (i: number, field: "minVolume" | "rate", v: number) => {
     const next = [...personalTiers];
@@ -1879,8 +1893,8 @@ function PlanPanel() {
     return `${base} ${i}`;
   };
 
-  const addBlankPosition = (name = "New Position") =>
-    addPosition({
+  const addBlankPosition = (name = isEs ? "Nueva posición" : "New Position") => {
+    const id = addPosition({
       name: uniquePositionName(name),
       commissionPercent: 0.08,
       fixedPayout: 0,
@@ -1896,6 +1910,8 @@ function PlanPanel() {
       specialDeductionPercent: 0,
       notes: "",
     });
+    setJustAddedId(id);
+  };
 
   const presetNames = [
     "Junior Rep", "Sales Rep", "Senior Rep", "Manager",
@@ -1963,6 +1979,7 @@ function PlanPanel() {
                   <div className="flex items-start justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Input className="font-semibold w-56" value={p.name}
+                        ref={(el) => { nameInputRefs.current[p.id] = el; }}
                         onChange={(e) => {
                           const v = e.target.value;
                           const dup = positions.some(
