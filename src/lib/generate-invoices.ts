@@ -233,15 +233,29 @@ export function buildSaleInvoicePDF(
   });
   y = (doc as any).lastAutoTable.finalY + 10;
 
+  // Every component that feeds into c.totalCharges must appear here as its
+  // own row — otherwise the printed total doesn't reconcile with what's shown.
   const chargeRows = [...inv.charges.map((x) => [x.label, fmtMoney(x.amount, cur)])];
-  if (c.financeCo) {
-    if (c.financeCo.dealerFee) chargeRows.push(["Dealer fee", fmtMoney(c.financeCo.dealerFee, cur)]);
-    if (c.financeCo.adminFee) chargeRows.push(["Admin fee", fmtMoney(c.financeCo.adminFee, cur)]);
-    if (c.financeCo.defaultFee)
-      chargeRows.push([
-        `Finance fee (${(c.financeCo.defaultFee * 100).toFixed(2)}%)`,
-        fmtMoney(c.financeCo.defaultFee * inv.salesAmount, cur),
-      ]);
+  const effectiveDealerFee = inv.dealerFee != null ? inv.dealerFee : c.financeCo?.dealerFee ?? 0;
+  if (effectiveDealerFee) chargeRows.push(["Dealer fee", fmtMoney(effectiveDealerFee, cur)]);
+  if (c.financeCo?.adminFee) chargeRows.push(["Finance admin fee", fmtMoney(c.financeCo.adminFee, cur)]);
+  if (c.financeCo?.defaultFee)
+    chargeRows.push([
+      `Finance fee (${(c.financeCo.defaultFee * 100).toFixed(2)}%)`,
+      fmtMoney(c.financeCo.defaultFee * inv.salesAmount, cur),
+    ]);
+  if (inv.adminFeePercent) {
+    chargeRows.push([
+      `Admin fee (${(inv.adminFeePercent * 100).toFixed(2)}%)`,
+      fmtMoney(inv.salesAmount * inv.adminFeePercent, cur),
+    ]);
+  }
+  if (inv.saleType === "credit_card") {
+    const ccpfPct = inv.ccpfPercent ?? 0.035;
+    chargeRows.push([
+      `C.C.P.F. (${(ccpfPct * 100).toFixed(2)}%)`,
+      fmtMoney(inv.salesAmount * ccpfPct, cur),
+    ]);
   }
   if (chargeRows.length && tpl !== "compact") {
     autoTable(doc, {
