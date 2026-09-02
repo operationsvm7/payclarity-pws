@@ -1403,7 +1403,7 @@ function InvoicesPanel() {
       const total = totalSplitPercent(payload.split.participants);
       if (!isSplitValid(payload.split.participants)) {
         return toast.error(
-          `Split commission must total 100% (currently ${(total * 100).toFixed(2)}%). Open the Split editor to fix it.`
+          t("err_split_total_100").replace("{pct}", (total * 100).toFixed(2))
         );
       }
     }
@@ -1494,20 +1494,20 @@ function InvoicesPanel() {
                 setOverridePercentText("");
               }
             }} disabled={!isAdmin}>
-              <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("lbl_select_ellipsis")} /></SelectTrigger>
               <SelectContent>
                 {(isAdmin ? s.agents : s.agents.filter((a) => a.id === myAgentId)).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}{a.level ? ` · ${a.level}` : ""}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="md:col-span-2"><Label>{t("lbl_customer")}</Label>
-            <Input value={draft.customerName} onChange={(e) => setDraft({ ...draft, customerName: e.target.value })} placeholder="Customer name" />
+            <Input value={draft.customerName} onChange={(e) => setDraft({ ...draft, customerName: e.target.value })} placeholder={t("lbl_customer_name_placeholder")} />
           </div>
           <div><Label>{t("lbl_finance_co")}</Label>
             <Select value={draft.financeCompanyId || "none"} onValueChange={(v) => setDraft({ ...draft, financeCompanyId: v === "none" ? null : v })}>
-              <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t("lbl_none_dash")} /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">— None —</SelectItem>
+                <SelectItem value="none">{t("lbl_none_dash")}</SelectItem>
                 {s.financeCompanies.filter((f) => f.active).map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -1706,9 +1706,9 @@ function InvoicesPanel() {
         <LineEditor title={t("lbl_credits")} rows={draft.credits} onAdd={() => addLine("credits")} onRemove={(i) => removeLine("credits", i)} onChange={(i, f, v) => updateLine("credits", i, f, v)} />
 
         <div className="flex gap-2 mt-4">
-          <Button onClick={save}><Plus className="w-4 h-4 mr-2" />{editing ? "Update" : "Create invoice"}</Button>
+          <Button onClick={save}><Plus className="w-4 h-4 mr-2" />{editing ? t("btn_update") : t("btn_create_invoice")}</Button>
           {editing && (
-            <Button variant="outline" onClick={() => { setEditing(null); setDraft(blankInvoice()); setOverrideMode("percent"); setOverridePercentText(""); setOverrideAmountText(""); setSelectedProductId(""); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setEditing(null); setDraft(blankInvoice()); setOverrideMode("percent"); setOverridePercentText(""); setOverrideAmountText(""); setSelectedProductId(""); }}>{t("btn_cancel")}</Button>
           )}
           {isAdmin && draft.agentId && (
             <Button variant="outline" onClick={() => setInvolvedOpen(true)}>
@@ -1857,9 +1857,9 @@ function InvoicesPanel() {
                             <HelpCircle className="w-4 h-4 mr-1" />
                             {t("btn_explain_commission")}
                           </Button>
-                          <Button variant="ghost" size="sm" title="Request correction" onClick={() => setDisputeId(inv.id)}><MessageSquare className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="sm" title={t("tt_request_correction")} onClick={() => setDisputeId(inv.id)}><MessageSquare className="w-4 h-4" /></Button>
                           {isAdmin && (
-                            <Button variant="ghost" size="sm" title="Split commission" onClick={() => setSplitId(inv.id)}>
+                            <Button variant="ghost" size="sm" title={t("tt_split_commission")} onClick={() => setSplitId(inv.id)}>
                               <SplitIcon className="w-4 h-4" />
                             </Button>
                           )}
@@ -1874,7 +1874,7 @@ function InvoicesPanel() {
                             const payout = payouts.find((p) => p.agent.id === inv.agentId) ?? null;
                             buildSaleAndDownload(c, s.company, ag?.name || "—", payout);
                           }}>PDF</Button>
-                          <Button variant="ghost" size="sm" title="Timeline / audit log" onClick={() => setTimelineId(inv.id)}><Activity className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="sm" title={t("tt_timeline_audit")} onClick={() => setTimelineId(inv.id)}><Activity className="w-4 h-4" /></Button>
                           {isAdmin && <Button variant="ghost" size="icon" onClick={() => s.removeInvoice(inv.id)}><Trash2 className="w-4 h-4" /></Button>}
                         </td>
                       </tr>
