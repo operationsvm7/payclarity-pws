@@ -431,8 +431,8 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
   const t = useT();
   const [step, setStep] = useState(0);
 
-  const [agentDraft, setAgentDraft] = useState({ name: "", email: "", commissionPercent: "8", level: "" });
-  const [agentCommissionMode, setAgentCommissionMode] = useState<"percent" | "fixed">("percent");
+  const [agentDraft, setAgentDraft] = useState({ name: "", email: "", commissionPercent: "", level: "" });
+  const [agentCommissionMode, setAgentCommissionMode] = useState<"percent" | "fixed">("fixed");
   const [financeDraft, setFinanceDraft] = useState({ name: "", defaultFee: 0.05, dealerFee: 0, adminFee: 0 });
   const [tierRate, setTierRate] = useState(8);
   const [ovRate, setOvRate] = useState(2);
@@ -671,8 +671,8 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
                   : { commissionPercent: (Number(valRaw) || 8) / 100, fixedCommissionAmount: undefined }),
                 level: agentDraft.level,
               });
-              setAgentDraft({ name: "", email: "", commissionPercent: "8", level: "" });
-              setAgentCommissionMode("percent");
+              setAgentDraft({ name: "", email: "", commissionPercent: "", level: "" });
+              setAgentCommissionMode("fixed");
               toast.success(t("success_rep_added"));
             }}>
               <Plus className="w-3 h-3 mr-2" />{t("btn_add")}

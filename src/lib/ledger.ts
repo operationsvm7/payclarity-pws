@@ -623,4 +623,62 @@ export function computeCoachInsight(
   return null;
 }
 
+/* -------- Who this invoice pays: seller's upline (overrides) + seller/split -------- */
+
+export type InvolvedRow = { name: string; role: string; amount: number };
+
+/** Everyone this invoice pays: the seller's sponsor chain (who earn an
+ *  override on this profit — topmost sponsor first), then the seller
+ *  themselves, split per participant when the invoice has a split. */
+export function computeInvolved(
+  inv: Invoice,
+  c: InvoiceCalc,
+  agents: Agent[],
+  overrides: OverrideLevel[],
+  lang: Lang = "en"
+): InvolvedRow[] {
+  const seller = agents.find((a) => a.id === inv.agentId);
+  if (!seller) return [];
+  const overrideMap = new Map(overrides.map((o) => [o.level, o.rate]));
+
+  const upline: { agent: Agent; level: number }[] = [];
+  const visited = new Set<string>([seller.id]);
+  let cursor: Agent = seller;
+  let level = 1;
+  while (cursor.sponsorId && !visited.has(cursor.sponsorId)) {
+    const sponsor = agents.find((a) => a.id === cursor.sponsorId);
+    if (!sponsor) break;
+    visited.add(sponsor.id);
+    upline.push({ agent: sponsor, level });
+    cursor = sponsor;
+    level++;
+  }
+  upline.reverse(); // topmost sponsor first
+
+  const rate = inv.commissionPercentOverride ?? seller.commissionPercent ?? 0;
+  const personal = Math.max(0, c.commissionableBase) * rate;
+  const splits = inv.split?.participants ?? [];
+
+  const rows: InvolvedRow[] = upline.map((u) => ({
+    name: u.agent.name,
+    role: `Override L${u.level} (${((overrideMap.get(u.level) || 0) * 100).toFixed(2)}%)`,
+    amount: Math.max(0, c.profit) * (overrideMap.get(u.level) || 0),
+  }));
+
+  if (splits.length > 0) {
+    for (const p of splits) {
+      const roleName = p.role === "custom" && p.customRoleLabel ? p.customRoleLabel : p.role.replace(/_/g, " ");
+      rows.push({
+        name: p.displayName || "—",
+        role: `${roleName} (${(p.splitPercent * 100).toFixed(0)}%)`,
+        amount: personal * p.splitPercent,
+      });
+    }
+  } else {
+    rows.push({ name: seller.name, role: lang === "es" ? "Vendedor" : "Salesperson", amount: personal });
+  }
+
+  return rows;
+}
+
 export { calcInvoice };

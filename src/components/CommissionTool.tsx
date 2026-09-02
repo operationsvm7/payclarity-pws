@@ -7,6 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Trash2, Plus, FileDown, Sparkles, Users, Receipt, Layers, Building2, Banknote, AlertCircle,
@@ -42,7 +45,7 @@ import { DashboardPanel, ReportsPanel, YearEnd1099Panel, TaxReserveByStateEditor
 import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { AdminGate } from "@/components/AdminGate";
 import { AdjustmentsPanel, CsvImportPanel, SetupWizard } from "@/components/CompetitivePanels";
-import { SplitsPanel, SplitEditorDialog, totalSplitPercent, isSplitValid } from "@/components/SplitsPanel";
+import { SplitsPanel, SplitEditorDialog, totalSplitPercent, isSplitValid, roleLabel } from "@/components/SplitsPanel";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { InvoiceTimelineDialog } from "@/components/InvoiceTimelineDialog";
@@ -889,7 +892,7 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
   const t = useT();
   const isEs = language === "es";
   const [form, setForm] = useState({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
-  const [formCommissionMode, setFormCommissionMode] = useState<"percent" | "fixed">("percent");
+  const [formCommissionMode, setFormCommissionMode] = useState<"percent" | "fixed">("fixed");
 
   const readiness = useMemo(() => {
     if (agents.length === 0) return null;
@@ -925,7 +928,7 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
       level: form.level.trim(),
     });
     setForm({ name: "", email: "", sponsorId: "", commissionPercent: "", level: "" });
-    setFormCommissionMode("percent");
+    setFormCommissionMode("fixed");
     toast.success(t("success_rep_added"));
   };
 
@@ -1307,10 +1310,61 @@ function InvoicesPanel() {
     [s.agents, s.invoices, s.financeCompanies, s.personalTiers, s.overrides]
   );
 
+  // Everyone this invoice pays: the seller's upline chain (who earn an
+  // override on this profit — topmost sponsor first), then the seller
+  // themselves, split by participant when the invoice has a split.
+  const involved = useMemo(() => {
+    const seller = s.agents.find((a) => a.id === draft.agentId);
+    if (!seller) return [];
+    const overrideMap = new Map(s.overrides.map((o) => [o.level, o.rate]));
+    const upline: { agent: typeof seller; level: number }[] = [];
+    const visited = new Set<string>([seller.id]);
+    let cursor = seller;
+    let level = 1;
+    while (cursor.sponsorId && !visited.has(cursor.sponsorId)) {
+      const sponsor = s.agents.find((a) => a.id === cursor.sponsorId);
+      if (!sponsor) break;
+      visited.add(sponsor.id);
+      upline.push({ agent: sponsor, level });
+      cursor = sponsor;
+      level++;
+    }
+    upline.reverse(); // topmost sponsor first, matching the chain of command
+
+    const rate =
+      draft.commissionPercentOverride != null
+        ? draft.commissionPercentOverride
+        : seller.commissionPercent ?? 0;
+    const personal = Math.max(0, live.commissionableBase) * rate;
+    const splits = draft.split?.participants ?? [];
+
+    const rows: { name: string; role: string; amount: number }[] = upline.map((u) => ({
+      name: u.agent.name,
+      role: `Override L${u.level} (${((overrideMap.get(u.level) || 0) * 100).toFixed(2)}%)`,
+      amount: Math.max(0, live.profit) * (overrideMap.get(u.level) || 0),
+    }));
+
+    if (splits.length > 0) {
+      for (const p of splits) {
+        rows.push({
+          name: p.displayName || "—",
+          role: `${roleLabel(p.role, p.customRoleLabel)} (${(p.splitPercent * 100).toFixed(0)}%)`,
+          amount: personal * p.splitPercent,
+        });
+      }
+    } else {
+      rows.push({ name: seller.name, role: s.language === "es" ? "Vendedor" : "Salesperson", amount: personal });
+    }
+
+    return rows;
+  }, [draft.agentId, draft.commissionPercentOverride, draft.split, live.commissionableBase, live.profit, s.agents, s.overrides, s.language]);
+
   const [explainId, setExplainId] = useState<string | null>(null);
   const [disputeId, setDisputeId] = useState<string | null>(null);
   const [splitId, setSplitId] = useState<string | null>(null);
   const [timelineId, setTimelineId] = useState<string | null>(null);
+  const [involvedOpen, setInvolvedOpen] = useState(false);
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const dl = s.deepLink;
@@ -1407,11 +1461,38 @@ function InvoicesPanel() {
           <div><Label>{t("lbl_salesperson")}</Label>
             <Select value={draft.agentId} onValueChange={(v) => {
               const ag = s.agents.find((a) => a.id === v);
+              // Pre-fill the commission override from this rep's own fixed
+              // rule, or — if they don't have one — their position's fixed
+              // payout, so admin sees up front what this invoice will pay
+              // them (still editable). Percent-based reps are left as-is.
+              let fixedDefault: number | null = null;
+              if (ag?.commissionMode === "fixed" && ag.fixedCommissionAmount != null) {
+                fixedDefault = ag.fixedCommissionAmount;
+              } else if (ag && ag.commissionPercent == null) {
+                const pos = s.positions.find((p) => p.name === ag.level && p.active);
+                if (pos && pos.fixedPayout > 0) fixedDefault = pos.fixedPayout;
+              }
+              // Always clear any override left over from the previous rep.
+              // commissionableBase depends only on sales amount/product cost,
+              // not agentId, so it's safe to convert the fixed default right
+              // now if those are already filled in; otherwise the existing
+              // effect (keyed on commissionableBase) applies it once they are.
               setDraft({
                 ...draft,
                 agentId: v,
                 commissionLevel: ag?.level ?? draft.commissionLevel ?? "",
+                commissionPercentOverride:
+                  fixedDefault != null && live.commissionableBase > 0
+                    ? fixedDefault / live.commissionableBase
+                    : undefined,
               });
+              if (fixedDefault != null) {
+                setOverrideMode("amount");
+                setOverrideAmountText(String(fixedDefault));
+              } else {
+                setOverrideMode("percent");
+                setOverridePercentText("");
+              }
             }} disabled={!isAdmin}>
               <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
@@ -1629,6 +1710,12 @@ function InvoicesPanel() {
           {editing && (
             <Button variant="outline" onClick={() => { setEditing(null); setDraft(blankInvoice()); setOverrideMode("percent"); setOverridePercentText(""); setOverrideAmountText(""); setSelectedProductId(""); }}>Cancel</Button>
           )}
+          {isAdmin && draft.agentId && (
+            <Button variant="outline" onClick={() => setInvolvedOpen(true)}>
+              <Users className="w-4 h-4 mr-2" />
+              {s.language === "es" ? "Ver invoices" : "View invoices"}
+            </Button>
+          )}
         </div>
       </SectionCard>
       )}
@@ -1804,6 +1891,70 @@ function InvoicesPanel() {
       <DisputeDialog invoiceId={disputeId} open={!!disputeId} onClose={() => setDisputeId(null)} />
       <SplitEditorDialog invoiceId={splitId} open={!!splitId} onClose={() => setSplitId(null)} />
       <InvoiceTimelineDialog invoiceId={timelineId} open={!!timelineId} onClose={() => setTimelineId(null)} />
+
+      <Dialog open={involvedOpen} onOpenChange={setInvolvedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{s.language === "es" ? "Involucrados en este invoice" : "Who's involved in this invoice"}</DialogTitle>
+            <DialogDescription>
+              {s.language === "es"
+                ? "Línea de mando, de arriba hacia abajo. Revisa lo que le llegará a cada uno antes de guardar."
+                : "Chain of command, top to bottom. Review what each person will receive before saving."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+            {involved.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                {s.language === "es" ? "Selecciona un vendedor primero." : "Select a salesperson first."}
+              </p>
+            ) : (
+              involved.map((row, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 border border-border rounded-md p-3">
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{row.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{row.role}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono text-sm">{fmtMoney(row.amount, s.company.currency)}</span>
+                    <Button size="sm" variant="outline" onClick={() => setPreviewIdx(i)}>
+                      {s.language === "es" ? "Ver invoice" : "View invoice"}
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInvolvedOpen(false)}>{s.language === "es" ? "Cerrar" : "Close"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={previewIdx != null} onOpenChange={(o) => !o && setPreviewIdx(null)}>
+        <DialogContent className="max-w-md">
+          {previewIdx != null && involved[previewIdx] && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{involved[previewIdx].name}</DialogTitle>
+                <DialogDescription>{involved[previewIdx].role}</DialogDescription>
+              </DialogHeader>
+              <div className="rounded-xl bg-accent/5 border border-accent/20 p-4 space-y-1 text-sm">
+                <p className="text-muted-foreground">
+                  {s.language === "es"
+                    ? `Recibirá de la venta a ${draft.customerName || "este cliente"}:`
+                    : `Will receive from the sale to ${draft.customerName || "this customer"}:`}
+                </p>
+                <p className="text-2xl font-bold text-accent">
+                  {fmtMoney(involved[previewIdx].amount, s.company.currency)}
+                </p>
+              </div>
+            </>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPreviewIdx(null)}>{s.language === "es" ? "Cerrar" : "Close"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

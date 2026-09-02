@@ -9,8 +9,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FileText, Split as SplitIcon, MessageSquare, Activity, Download, ArrowDownNarrowWide, ArrowUpNarrowWide, Receipt } from "lucide-react";
+import { FileText, Split as SplitIcon, MessageSquare, Activity, Download, ArrowDownNarrowWide, ArrowUpNarrowWide, Receipt, Users } from "lucide-react";
 import { useStore } from "@/lib/commission-store";
+import { calcInvoice, fmtMoney } from "@/lib/commission-calc";
+import { computeInvolved } from "@/lib/ledger";
 import { useT } from "@/lib/i18n";
 import { toast } from "sonner";
 
@@ -100,6 +102,12 @@ export function InvoiceTimelineDialog({
     () => (inv ? s.disputes.filter((d) => d.invoiceId === inv.id) : []),
     [inv, s.disputes]
   );
+
+  const involved = useMemo(() => {
+    if (!inv) return [];
+    const c = calcInvoice(inv, s.financeCompanies);
+    return computeInvolved(inv, c, s.agents, s.overrides, s.language);
+  }, [inv, s.financeCompanies, s.agents, s.overrides, s.language]);
 
   const allEntries = useMemo<TimelineEntry[]>(() => {
     if (!inv) return [];
@@ -300,6 +308,26 @@ export function InvoiceTimelineDialog({
             </Button>
           </div>
         </div>
+
+        {involved.length > 0 && (
+          <div className="border border-border rounded-md p-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              <Users className="w-3.5 h-3.5" />
+              {isEs ? "Reparto de este invoice" : "This invoice's payout"}
+            </div>
+            <ul className="space-y-1.5">
+              {involved.map((row, i) => (
+                <li key={i} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="min-w-0">
+                    <span className="font-medium">{row.name}</span>
+                    <span className="text-xs text-muted-foreground ml-1.5">{row.role}</span>
+                  </span>
+                  <span className="font-mono shrink-0">{fmtMoney(row.amount, s.company.currency)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {entries.length === 0 ? (
           <div className="text-sm text-muted-foreground border border-dashed rounded-md p-6 text-center">
