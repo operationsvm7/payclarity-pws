@@ -1936,13 +1936,25 @@ function InvoicesPanel() {
             <>
               <DialogHeader>
                 <DialogTitle>{involved[previewIdx].name}</DialogTitle>
-                <DialogDescription>{involved[previewIdx].role}</DialogDescription>
+                <DialogDescription>
+                  {s.language === "es" ? "Vista del invoice que le llega" : "Invoice overview they receive"} — {draft.customerName || (s.language === "es" ? "este cliente" : "this customer")}
+                </DialogDescription>
               </DialogHeader>
-              <div className="rounded-xl bg-accent/5 border border-accent/20 p-4 space-y-1 text-sm">
+              <div className="space-y-1 text-sm">
+                <Row k={t("preview_sales")} v={fmtMoney(draft.salesAmount, s.company.currency)} />
+                <Row k={t("preview_approval")} v={fmtMoney(live.approvalAmount, s.company.currency)} />
+                <Row k={t("lbl_discount")} v={`- ${fmtMoney(draft.discount, s.company.currency)}`} />
+                <Row k={t("preview_total_charges")} v={`- ${fmtMoney(live.totalCharges, s.company.currency)}`} />
+                <Row k={t("preview_total_credits")} v={`+ ${fmtMoney(live.totalCredits, s.company.currency)}`} />
+                <div className="border-t my-2" />
+                <Row k={t("preview_grand_total")} v={fmtMoney(live.grandTotal, s.company.currency)} bold />
+                <Row k={t("preview_product_cost_lbl")} v={`- ${fmtMoney(draft.productCost, s.company.currency)}`} />
+                <Row k={t("preview_net_profit")} v={fmtMoney(live.profit, s.company.currency)} accent bold />
+              </div>
+              <div className="rounded-xl bg-accent/5 border border-accent/20 p-4 space-y-1 text-sm mt-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-accent">{involved[previewIdx].role}</p>
                 <p className="text-muted-foreground">
-                  {s.language === "es"
-                    ? `Recibirá de la venta a ${draft.customerName || "este cliente"}:`
-                    : `Will receive from the sale to ${draft.customerName || "this customer"}:`}
+                  {s.language === "es" ? "Recibirá de este invoice:" : "Will receive from this invoice:"}
                 </p>
                 <p className="text-2xl font-bold text-accent">
                   {fmtMoney(involved[previewIdx].amount, s.company.currency)}
