@@ -61,6 +61,8 @@ export function adaptAgent(row: Tables<"agents">): Agent {
     paymentMethod: row.payment_method ?? undefined,
     taxReservePercent: row.tax_reserve_percent != null ? Number(row.tax_reserve_percent) : undefined,
     commissionPercent: row.commission_percent != null ? Number(row.commission_percent) : undefined,
+    commissionMode: row.commission_mode ?? undefined,
+    fixedCommissionAmount: row.fixed_commission_amount != null ? Number(row.fixed_commission_amount) : undefined,
     level: row.level ?? undefined,
   };
 }
@@ -77,6 +79,8 @@ export function agentToRow(a: Agent, companyId: string) {
     payment_method: a.paymentMethod ?? undefined,
     tax_reserve_percent: a.taxReservePercent ?? 0.2,
     commission_percent: a.commissionPercent ?? undefined,
+    commission_mode: a.commissionMode ?? undefined,
+    fixed_commission_amount: a.fixedCommissionAmount ?? undefined,
     level: a.level ?? undefined,
   };
 }

@@ -697,6 +697,8 @@ export type Database = {
           payment_method: string
           tax_reserve_percent: number
           commission_percent: number | null
+          commission_mode: "percent" | "fixed" | null
+          fixed_commission_amount: number | null
           level: string
           created_at: string
           updated_at: string
@@ -713,6 +715,8 @@ export type Database = {
           payment_method?: string
           tax_reserve_percent?: number
           commission_percent?: number | null
+          commission_mode?: "percent" | "fixed" | null
+          fixed_commission_amount?: number | null
           level?: string
           created_at?: string
           updated_at?: string
@@ -729,6 +733,8 @@ export type Database = {
           payment_method?: string
           tax_reserve_percent?: number
           commission_percent?: number | null
+          commission_mode?: "percent" | "fixed" | null
+          fixed_commission_amount?: number | null
           level?: string
           created_at?: string
           updated_at?: string
