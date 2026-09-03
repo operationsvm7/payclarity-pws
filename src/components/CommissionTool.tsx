@@ -996,7 +996,7 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
             <SelectTrigger><SelectValue placeholder="Select level" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="none">—</SelectItem>
-              {positions.filter((p) => p.active).map((p) => (
+              {positions.filter((p) => p.active && p.name.trim() !== "").map((p) => (
                 <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
               ))}
             </SelectContent>
@@ -1074,7 +1074,7 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
                       <SelectTrigger className="h-8 w-32"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">—</SelectItem>
-                        {positions.filter((p) => p.active).map((p) => (
+                        {positions.filter((p) => p.active && p.name.trim() !== "").map((p) => (
                           <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -2023,6 +2023,10 @@ function PlanPanel() {
   const isEs = language === "es";
   const nameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  // In-progress typing per position, so clearing the field to retype
+  // doesn't briefly save an empty name — a blank SelectItem value
+  // crashes every "Nivel" picker in the app.
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!justAddedId) return;
@@ -2141,14 +2145,17 @@ function PlanPanel() {
                 <div key={p.id} className="border border-border/60 rounded-lg p-4 space-y-3 bg-card/40">
                   <div className="flex items-start justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Input className="font-semibold w-56" value={p.name}
+                      <Input className="font-semibold w-56"
+                        value={nameDrafts[p.id] ?? p.name}
                         ref={(el) => { nameInputRefs.current[p.id] = el; }}
                         onChange={(e) => {
                           const v = e.target.value;
+                          setNameDrafts((d) => ({ ...d, [p.id]: v }));
+                          if (v.trim() === "") return; // don't persist an empty name — let them keep typing
                           const dup = positions.some(
                             (x) => x.id !== p.id && x.name.trim().toLowerCase() === v.trim().toLowerCase()
                           );
-                          if (dup && v.trim() !== "") {
+                          if (dup) {
                             toast.error(
                               language === "es"
                                 ? `Ya existe un nivel llamado "${v}"`
@@ -2157,6 +2164,15 @@ function PlanPanel() {
                             return;
                           }
                           updatePosition(p.id, { name: v });
+                        }}
+                        onBlur={() => {
+                          if ((nameDrafts[p.id] ?? p.name).trim() === "") {
+                            setNameDrafts((d) => {
+                              const next = { ...d };
+                              delete next[p.id];
+                              return next;
+                            });
+                          }
                         }} />
                       <label className="flex items-center gap-2 text-xs">
                         <Switch checked={p.active} onCheckedChange={(v) => updatePosition(p.id, { active: v })} />

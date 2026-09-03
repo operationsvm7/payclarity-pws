@@ -652,7 +652,7 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
                   <SelectTrigger><SelectValue placeholder={es ? "Elegir…" : "Select…"} /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">—</SelectItem>
-                    {s.positions.filter((p) => p.active).map((p) => (
+                    {s.positions.filter((p) => p.active && p.name.trim() !== "").map((p) => (
                       <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
                     ))}
                   </SelectContent>
