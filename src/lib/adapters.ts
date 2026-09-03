@@ -63,6 +63,7 @@ export function adaptAgent(row: Tables<"agents">): Agent {
     commissionPercent: row.commission_percent != null ? Number(row.commission_percent) : undefined,
     commissionMode: row.commission_mode ?? undefined,
     fixedCommissionAmount: row.fixed_commission_amount != null ? Number(row.fixed_commission_amount) : undefined,
+    avatarUrl: row.avatar_url ?? undefined,
     level: row.level ?? undefined,
   };
 }
@@ -81,6 +82,7 @@ export function agentToRow(a: Agent, companyId: string) {
     commission_percent: a.commissionPercent ?? undefined,
     commission_mode: a.commissionMode ?? undefined,
     fixed_commission_amount: a.fixedCommissionAmount ?? undefined,
+    avatar_url: a.avatarUrl ?? undefined,
     level: a.level ?? undefined,
   };
 }
@@ -308,6 +310,7 @@ export function adaptDispute(row: DisputeRow): Dispute {
     assignedAdminId: row.assigned_admin_id ?? null,
     adminNotes: row.admin_notes,
     requestedChange: (row.requested_change as any) ?? null,
+    attachmentUrl: row.attachment_url ?? undefined,
     events,
     createdAt: row.created_at,
     resolvedAt: row.resolved_at ?? null,
@@ -328,6 +331,7 @@ export function disputeToRow(d: Dispute, companyId: string) {
     assigned_admin_id: d.assignedAdminId ?? null,
     admin_notes: d.adminNotes ?? "",
     requested_change: (d.requestedChange as any) ?? null,
+    attachment_url: d.attachmentUrl ?? undefined,
   };
 }
 
@@ -459,6 +463,7 @@ export function adaptProduct(row: Tables<"products">): Product {
     priceEditable: row.price_editable,
     active: row.active,
     notes: row.notes,
+    photoUrl: row.photo_url ?? undefined,
   };
 }
 
@@ -474,6 +479,7 @@ export function productToRow(p: Product, companyId: string) {
     price_editable: p.priceEditable,
     active: p.active,
     notes: p.notes,
+    photo_url: p.photoUrl ?? undefined,
   };
 }
 

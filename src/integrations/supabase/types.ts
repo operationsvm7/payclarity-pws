@@ -257,6 +257,7 @@ export type Database = {
           assigned_admin_id: string | null
           admin_notes: string
           requested_change: Record<string, unknown> | null
+          attachment_url: string | null
           created_at: string
           updated_at: string
           resolved_at: string | null
@@ -274,6 +275,7 @@ export type Database = {
           assigned_admin_id?: string | null
           admin_notes?: string
           requested_change?: Record<string, unknown> | null
+          attachment_url?: string | null
           created_at?: string
           updated_at?: string
           resolved_at?: string | null
@@ -291,6 +293,7 @@ export type Database = {
           assigned_admin_id?: string | null
           admin_notes?: string
           requested_change?: Record<string, unknown> | null
+          attachment_url?: string | null
           created_at?: string
           updated_at?: string
           resolved_at?: string | null
@@ -699,6 +702,7 @@ export type Database = {
           commission_percent: number | null
           commission_mode: "percent" | "fixed" | null
           fixed_commission_amount: number | null
+          avatar_url: string | null
           level: string
           created_at: string
           updated_at: string
@@ -717,6 +721,7 @@ export type Database = {
           commission_percent?: number | null
           commission_mode?: "percent" | "fixed" | null
           fixed_commission_amount?: number | null
+          avatar_url?: string | null
           level?: string
           created_at?: string
           updated_at?: string
@@ -735,6 +740,7 @@ export type Database = {
           commission_percent?: number | null
           commission_mode?: "percent" | "fixed" | null
           fixed_commission_amount?: number | null
+          avatar_url?: string | null
           level?: string
           created_at?: string
           updated_at?: string
@@ -821,6 +827,7 @@ export type Database = {
           price_editable: boolean
           active: boolean
           notes: string
+          photo_url: string | null
           created_at: string
           updated_at: string
         }
@@ -835,6 +842,7 @@ export type Database = {
           price_editable?: boolean
           active?: boolean
           notes?: string
+          photo_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -849,6 +857,7 @@ export type Database = {
           price_editable?: boolean
           active?: boolean
           notes?: string
+          photo_url?: string | null
           created_at?: string
           updated_at?: string
         }
