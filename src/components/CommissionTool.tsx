@@ -1037,9 +1037,15 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
                     </Select>
                   </td>
                   <td>
+                    {(() => {
+                      // Show $ by default for every row unless this agent has
+                      // an explicit mode saved — switching the toggle to %
+                      // still reveals whatever percent they already had.
+                      const effectiveMode: "percent" | "fixed" = a.commissionMode ?? "fixed";
+                      return (
                     <div className="flex gap-1">
                       <Select
-                        value={a.commissionMode === "fixed" ? "fixed" : "percent"}
+                        value={effectiveMode}
                         onValueChange={(v: "percent" | "fixed") => updateAgent(a.id, { commissionMode: v })}
                       >
                         <SelectTrigger className="h-8 w-16 shrink-0"><SelectValue /></SelectTrigger>
@@ -1048,13 +1054,19 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
                           <SelectItem value="fixed">$</SelectItem>
                         </SelectContent>
                       </Select>
-                      {a.commissionMode === "fixed" ? (
+                      {effectiveMode === "fixed" ? (
                         <Input
                           className="h-8 w-20"
                           type="number"
                           step="1"
                           value={a.fixedCommissionAmount ?? ""}
-                          onChange={(e) => updateAgent(a.id, { fixedCommissionAmount: e.target.value === "" ? undefined : Number(e.target.value) })}
+                          onChange={(e) => updateAgent(a.id, {
+                            // Persist the mode explicitly — it may only have
+                            // been the visual default until now, and the
+                            // payout calc requires commissionMode === "fixed".
+                            commissionMode: "fixed",
+                            fixedCommissionAmount: e.target.value === "" ? undefined : Number(e.target.value),
+                          })}
                           placeholder={isEs ? "por invoice" : "per invoice"}
                         />
                       ) : (
@@ -1068,6 +1080,8 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
                         />
                       )}
                     </div>
+                      );
+                    })()}
                   </td>
                   <td>
                     <Select value={a.level || "none"} onValueChange={(v) => updateAgent(a.id, { level: v === "none" ? "" : v })}>
