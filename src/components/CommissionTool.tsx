@@ -1301,7 +1301,7 @@ function InvoicesPanel() {
     const b = blankInvoice();
     return myAgentId ? { ...b, agentId: myAgentId } : b;
   });
-  const [overrideMode, setOverrideMode] = useState<"percent" | "amount">("percent");
+  const [overrideMode, setOverrideMode] = useState<"percent" | "amount">("amount");
   const [overridePercentText, setOverridePercentText] = useState("");
   const [overrideAmountText, setOverrideAmountText] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -1395,9 +1395,16 @@ function InvoicesPanel() {
     if (!inv) return;
     setEditing(id);
     setDraft(inv);
-    setOverrideMode("percent");
+    setOverrideMode("amount");
     setOverridePercentText(inv.commissionPercentOverride != null ? (inv.commissionPercentOverride * 100).toFixed(2) : "");
-    setOverrideAmountText("");
+    if (inv.commissionPercentOverride != null) {
+      const c = calcInvoice(inv, s.financeCompanies);
+      setOverrideAmountText(
+        c.commissionableBase > 0 ? (inv.commissionPercentOverride * c.commissionableBase).toFixed(2) : ""
+      );
+    } else {
+      setOverrideAmountText("");
+    }
     setSelectedProductId("");
   };
 
@@ -1436,7 +1443,7 @@ function InvoicesPanel() {
     }
     setEditing(null);
     setDraft(myAgentId ? { ...blankInvoice(), agentId: myAgentId } : blankInvoice());
-    setOverrideMode("percent");
+    setOverrideMode("amount");
     setOverridePercentText("");
     setOverrideAmountText("");
     setSelectedProductId("");
@@ -1500,13 +1507,9 @@ function InvoicesPanel() {
                     ? fixedDefault / live.commissionableBase
                     : undefined,
               });
-              if (fixedDefault != null) {
-                setOverrideMode("amount");
-                setOverrideAmountText(String(fixedDefault));
-              } else {
-                setOverrideMode("percent");
-                setOverridePercentText("");
-              }
+              setOverrideMode("amount");
+              setOverridePercentText("");
+              setOverrideAmountText(fixedDefault != null ? String(fixedDefault) : "");
             }} disabled={!isAdmin}>
               <SelectTrigger><SelectValue placeholder={t("lbl_select_ellipsis")} /></SelectTrigger>
               <SelectContent>
@@ -1722,7 +1725,7 @@ function InvoicesPanel() {
         <div className="flex gap-2 mt-4">
           <Button onClick={save}><Plus className="w-4 h-4 mr-2" />{editing ? t("btn_update") : t("btn_create_invoice")}</Button>
           {editing && (
-            <Button variant="outline" onClick={() => { setEditing(null); setDraft(blankInvoice()); setOverrideMode("percent"); setOverridePercentText(""); setOverrideAmountText(""); setSelectedProductId(""); }}>{t("btn_cancel")}</Button>
+            <Button variant="outline" onClick={() => { setEditing(null); setDraft(blankInvoice()); setOverrideMode("amount"); setOverridePercentText(""); setOverrideAmountText(""); setSelectedProductId(""); }}>{t("btn_cancel")}</Button>
           )}
           {isAdmin && draft.agentId && (
             <Button variant="outline" onClick={() => setInvolvedOpen(true)}>
