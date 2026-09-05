@@ -236,6 +236,8 @@ export function adaptPayment(row: Tables<"payments">): Payment {
     method: row.method,
     notes: row.notes,
     reference: row.reference,
+    scheduledDate: row.scheduled_date ?? undefined,
+    status: row.status ?? undefined,
   };
 }
 
@@ -249,6 +251,8 @@ export function paymentToRow(p: Payment, companyId: string) {
     method: p.method,
     notes: p.notes,
     reference: p.reference,
+    scheduled_date: p.scheduledDate ?? undefined,
+    status: p.status ?? undefined,
   };
 }
 

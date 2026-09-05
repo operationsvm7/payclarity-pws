@@ -36,6 +36,7 @@ import {
   buildSaleAndDownload, buildSaleInvoicePDF, buildAgentCommissionPDF,
   buildOverridePDF,
   downloadAllCommissionPDFs, downloadSummary, makeBrandingSnapshot, INVOICE_TEMPLATES,
+  downloadAllInvoiceStatements, downloadInvoiceMasterSummary,
 } from "@/lib/generate-invoices";
 import {
   WalletPanel, SimulatorPanel, CalendarPanel, TemplatesPanel, DisputesPanel,
@@ -46,6 +47,7 @@ import { UserManagementPanel } from "@/components/UserManagementPanel";
 import { AdminGate } from "@/components/AdminGate";
 import { AdjustmentsPanel, CsvImportPanel, SetupWizard } from "@/components/CompetitivePanels";
 import { SplitsPanel, SplitEditorDialog, totalSplitPercent, isSplitValid, roleLabel } from "@/components/SplitsPanel";
+import { computeInvolved } from "@/lib/ledger";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { InvoiceTimelineDialog } from "@/components/InvoiceTimelineDialog";
@@ -1355,7 +1357,7 @@ function InvoicesPanel() {
     const rows: { name: string; role: string; amount: number }[] = upline.map((u) => ({
       name: u.agent.name,
       role: `Override L${u.level} (${((overrideMap.get(u.level) || 0) * 100).toFixed(2)}%)`,
-      amount: Math.max(0, live.profit) * (overrideMap.get(u.level) || 0),
+      amount: Math.max(0, live.commissionProfit) * (overrideMap.get(u.level) || 0),
     }));
 
     if (splits.length > 0) {
@@ -1371,7 +1373,7 @@ function InvoicesPanel() {
     }
 
     return rows;
-  }, [draft.agentId, draft.commissionPercentOverride, draft.split, live.commissionableBase, live.profit, s.agents, s.overrides, s.language]);
+  }, [draft.agentId, draft.commissionPercentOverride, draft.split, live.commissionableBase, live.commissionProfit, s.agents, s.overrides, s.language]);
 
   const [explainId, setExplainId] = useState<string | null>(null);
   const [disputeId, setDisputeId] = useState<string | null>(null);
@@ -1379,6 +1381,7 @@ function InvoicesPanel() {
   const [timelineId, setTimelineId] = useState<string | null>(null);
   const [involvedOpen, setInvolvedOpen] = useState(false);
   const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const [payoutDocsId, setPayoutDocsId] = useState<string | null>(null);
 
   useEffect(() => {
     const dl = s.deepLink;
@@ -1748,6 +1751,9 @@ function InvoicesPanel() {
         <Row k={t("preview_grand_total")} v={fmtMoney(live.grandTotal, s.company.currency)} bold />
         <Row k={t("preview_product_cost_lbl")} v={`- ${fmtMoney(draft.productCost, s.company.currency)}`} />
         <Row k={t("preview_net_profit")} v={fmtMoney(live.profit, s.company.currency)} accent bold />
+        {live.adminFeeAmount > 0 && (
+          <Row k={t("preview_commission_base")} v={fmtMoney(live.commissionProfit, s.company.currency)} />
+        )}
         {(() => {
           const ag = s.agents.find((a) => a.id === draft.agentId);
           const rate =
@@ -1767,7 +1773,7 @@ function InvoicesPanel() {
           };
           const downline = draft.agentId ? collect(draft.agentId, 1) : [];
           const overrideTotal = downline.reduce(
-            (sum, d) => sum + Math.max(0, live.profit) * d.rate,
+            (sum, d) => sum + Math.max(0, live.commissionProfit) * d.rate,
             0
           );
           const splits = draft.split?.participants ?? [];
@@ -1799,7 +1805,7 @@ function InvoicesPanel() {
                     <Row
                       key={i}
                       k={`  ${d.name} L${d.level} (${(d.rate * 100).toFixed(2)}%)`}
-                      v={fmtMoney(Math.max(0, live.profit) * d.rate, s.company.currency)}
+                      v={fmtMoney(Math.max(0, live.commissionProfit) * d.rate, s.company.currency)}
                     />
                   ))}
                   <Row k={`  ${t("preview_override_total")}`} v={fmtMoney(overrideTotal, s.company.currency)} bold />
@@ -1883,14 +1889,21 @@ function InvoicesPanel() {
                           <Button variant="ghost" size="sm" onClick={() => {
                             if (!inv.brandingSnapshot) s.updateInvoice(inv.id, { brandingSnapshot: makeBrandingSnapshot(s.company) });
                             const payout = payouts.find((p) => p.agent.id === inv.agentId) ?? null;
-                            const doc = buildSaleInvoicePDF(c, s.company, ag?.name || "—", payout);
+                            const rows = computeInvolved(inv, c, s.agents, s.overrides, s.language);
+                            const doc = buildSaleInvoicePDF(c, s.company, ag?.name || "—", payout, rows);
                             window.open(doc.output("bloburl"), "_blank");
                           }}>{t("btn_preview")}</Button>
                           <Button variant="ghost" size="sm" onClick={() => {
                             if (!inv.brandingSnapshot) s.updateInvoice(inv.id, { brandingSnapshot: makeBrandingSnapshot(s.company) });
                             const payout = payouts.find((p) => p.agent.id === inv.agentId) ?? null;
-                            buildSaleAndDownload(c, s.company, ag?.name || "—", payout);
+                            const rows = computeInvolved(inv, c, s.agents, s.overrides, s.language);
+                            buildSaleAndDownload(c, s.company, ag?.name || "—", payout, rows);
                           }}>PDF</Button>
+                          {isAdmin && (
+                            <Button variant="ghost" size="sm" title={s.language === "es" ? "Documentos de pago" : "Payout documents"} onClick={() => setPayoutDocsId(inv.id)}>
+                              <Layers className="w-4 h-4" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="sm" title={t("tt_timeline_audit")} onClick={() => setTimelineId(inv.id)}><Activity className="w-4 h-4" /></Button>
                           {isAdmin && <Button variant="ghost" size="icon" onClick={() => s.removeInvoice(inv.id)}><Trash2 className="w-4 h-4" /></Button>}
                         </td>
@@ -1908,6 +1921,61 @@ function InvoicesPanel() {
       <DisputeDialog invoiceId={disputeId} open={!!disputeId} onClose={() => setDisputeId(null)} />
       <SplitEditorDialog invoiceId={splitId} open={!!splitId} onClose={() => setSplitId(null)} />
       <InvoiceTimelineDialog invoiceId={timelineId} open={!!timelineId} onClose={() => setTimelineId(null)} />
+
+      <Dialog open={!!payoutDocsId} onOpenChange={(o) => !o && setPayoutDocsId(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{s.language === "es" ? "Documentos de pago" : "Payout documents"}</DialogTitle>
+            <DialogDescription>
+              {s.language === "es"
+                ? "Un documento privado por cada persona, o un resumen consolidado para contabilidad."
+                : "A private document per person, or one consolidated summary for accounting."}
+            </DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const inv = s.invoices.find((i) => i.id === payoutDocsId);
+            if (!inv) return null;
+            const c = calcInvoice(inv, s.financeCompanies);
+            const rows = computeInvolved(inv, c, s.agents, s.overrides, s.language);
+            return (
+              <>
+                <div className="space-y-2 max-h-[45vh] overflow-y-auto">
+                  {rows.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-6">
+                      {s.language === "es" ? "Nadie está involucrado en este invoice todavía." : "No one is involved in this invoice yet."}
+                    </p>
+                  ) : (
+                    rows.map((row, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3 border border-border rounded-md p-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">{row.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{row.role}</p>
+                        </div>
+                        <span className="font-mono text-sm">{fmtMoney(row.amount, s.company.currency)}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <DialogFooter className="gap-2 sm:gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={rows.length === 0}
+                    onClick={() => downloadInvoiceMasterSummary(rows, c, s.company)}
+                  >
+                    {s.language === "es" ? "Resumen maestro" : "Master summary"}
+                  </Button>
+                  <Button
+                    disabled={rows.length === 0}
+                    onClick={() => downloadAllInvoiceStatements(rows, c, s.company, inv.taxReservePercent)}
+                  >
+                    {s.language === "es" ? "Generar todos" : "Generate all"}
+                  </Button>
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={involvedOpen} onOpenChange={setInvolvedOpen}>
         <DialogContent className="max-w-lg">

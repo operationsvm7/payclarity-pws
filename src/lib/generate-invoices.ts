@@ -178,11 +178,14 @@ function drawFooter(doc: jsPDF, b: EffectiveBranding) {
 
 /* -------- Per-invoice (sale) PDF -------- */
 
+export type InvoiceInvolvedRow = { name: string; role: string; amount: number };
+
 export function buildSaleInvoicePDF(
   c: InvoiceCalc,
   company: Company,
   agentName: string,
-  payout?: AgentPayout | null
+  payout?: AgentPayout | null,
+  involved?: InvoiceInvolvedRow[]
 ): jsPDF {
   const inv = c.invoice;
   const b = resolveBranding(company, inv);
@@ -300,8 +303,12 @@ export function buildSaleInvoicePDF(
       ],
       ["Product cost", `- ${fmtMoney(inv.productCost, cur)}`],
       [
-        { content: "Profit (commission base)", styles: { fontStyle: "bold" } },
+        { content: "Profit", styles: { fontStyle: "bold" } },
         { content: fmtMoney(c.profit, cur), styles: { fontStyle: "bold" } },
+      ],
+      [
+        { content: "Commission base", styles: { fontStyle: "bold" } },
+        { content: fmtMoney(c.commissionableBase, cur), styles: { fontStyle: "bold" } },
       ],
     ],
     theme: "plain",
@@ -360,6 +367,19 @@ export function buildSaleInvoicePDF(
       },
       styles: { fontSize },
       margin: { left: margin, right: margin },
+    });
+  }
+
+  if (involved && involved.length > 0) {
+    const y4 = (doc as any).lastAutoTable?.finalY ?? y;
+    autoTable(doc, {
+      startY: y4 + 14,
+      head: [["Who gets paid on this sale", "Role", `Amount (${cur})`]],
+      body: involved.map((r) => [r.name, r.role, fmtMoney(r.amount, cur)]),
+      headStyles: { fillColor: brand, textColor: 255 },
+      styles: { fontSize },
+      margin: { left: margin, right: margin },
+      columnStyles: { 2: { halign: "right" } },
     });
   }
 
@@ -655,10 +675,139 @@ export function buildSaleAndDownload(
   c: InvoiceCalc,
   company: Company,
   agentName: string,
-  payout?: AgentPayout | null
+  payout?: AgentPayout | null,
+  involved?: InvoiceInvolvedRow[]
 ) {
-  const doc = buildSaleInvoicePDF(c, company, agentName, payout);
+  const doc = buildSaleInvoicePDF(c, company, agentName, payout, involved);
   doc.save(`${c.invoice.number}_${(c.invoice.customerName || "invoice").replace(/\s+/g, "_")}.pdf`);
+}
+
+/* -------- Per-invoice payout documents: one private statement per
+   person, plus a consolidated master summary for accounting -------- */
+
+/** A private one-page statement for a single person's share of a single
+ *  sale — doesn't expose what anyone else on the deal earned. */
+export function buildInvoicePayoutStatementPDF(
+  row: InvoiceInvolvedRow,
+  c: InvoiceCalc,
+  company: Company,
+  taxReservePercent?: number
+): jsPDF {
+  const inv = c.invoice;
+  const b = resolveBranding(company, inv);
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const margin = 40;
+  const cur = b.currency;
+  const brand = hexToRgb(b.brandColor);
+
+  let y = drawHeader(doc, b, "PAYOUT STATEMENT", [
+    `Invoice #: ${inv.number}`,
+    `Date: ${inv.date}`,
+  ]);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("PAY TO", margin, y);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(row.name, margin, y + 16);
+  doc.text(row.role, margin, y + 30);
+
+  y += 60;
+
+  const reserve = Math.max(0, row.amount) * (taxReservePercent || 0);
+  const final = row.amount - reserve;
+  const rows: any[] = [
+    ["Customer", inv.customerName || "—"],
+    ["Your share of this sale", fmtMoney(row.amount, cur)],
+  ];
+  if (taxReservePercent)
+    rows.push([`Suggested tax reserve (${(taxReservePercent * 100).toFixed(0)}%)`, `- ${fmtMoney(reserve, cur)}`]);
+
+  autoTable(doc, {
+    startY: y,
+    body: rows,
+    foot: [
+      [
+        { content: "Final amount", styles: { fontStyle: "bold" } },
+        { content: fmtMoney(final, cur), styles: { fontStyle: "bold" } },
+      ],
+    ],
+    theme: "plain",
+    styles: { fontSize: 10 },
+    margin: { left: margin, right: margin },
+    columnStyles: { 1: { halign: "right" } },
+    footStyles: { fillColor: [235, 245, 255], textColor: 20, fontStyle: "bold" },
+    headStyles: { fillColor: brand, textColor: 255 },
+  });
+
+  drawFooter(doc, b);
+  return doc;
+}
+
+/** One consolidated document listing everyone who gets paid on this sale —
+ *  for accounting/admin use, not for handing to an individual rep. */
+export function buildInvoiceMasterSummaryPDF(
+  rows: InvoiceInvolvedRow[],
+  c: InvoiceCalc,
+  company: Company
+): jsPDF {
+  const inv = c.invoice;
+  const b = resolveBranding(company, inv);
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const margin = 40;
+  const cur = b.currency;
+  const brand = hexToRgb(b.brandColor);
+
+  drawHeader(doc, b, "MASTER TRANSACTION SUMMARY", [
+    `Invoice #: ${inv.number}`,
+    `Date: ${inv.date}`,
+  ]);
+
+  let y = 110;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Customer: ${inv.customerName || "—"}`, margin, y);
+  doc.text(`Sales amount: ${fmtMoney(inv.salesAmount, cur)}`, margin, y + 16);
+
+  y += 46;
+  const total = rows.reduce((s, r) => s + r.amount, 0);
+  autoTable(doc, {
+    startY: y,
+    head: [["Name", "Role", `Amount (${cur})`]],
+    body: rows.map((r) => [r.name, r.role, fmtMoney(r.amount, cur)]),
+    foot: [["", "Total payout", fmtMoney(total, cur)]],
+    headStyles: { fillColor: brand, textColor: 255 },
+    footStyles: { fillColor: [235, 245, 255], textColor: 20, fontStyle: "bold" },
+    styles: { fontSize: 10 },
+    margin: { left: margin, right: margin },
+    columnStyles: { 2: { halign: "right" } },
+  });
+
+  drawFooter(doc, b);
+  return doc;
+}
+
+/** "Generate All" — one private PDF per person on this sale. */
+export function downloadAllInvoiceStatements(
+  rows: InvoiceInvolvedRow[],
+  c: InvoiceCalc,
+  company: Company,
+  taxReservePercent?: number
+) {
+  for (const row of rows) {
+    const doc = buildInvoicePayoutStatementPDF(row, c, company, taxReservePercent);
+    doc.save(`${c.invoice.number}_${row.name.replace(/\s+/g, "_")}_statement.pdf`);
+  }
+}
+
+export function downloadInvoiceMasterSummary(
+  rows: InvoiceInvolvedRow[],
+  c: InvoiceCalc,
+  company: Company
+) {
+  const doc = buildInvoiceMasterSummaryPDF(rows, c, company);
+  doc.save(`${c.invoice.number}_master_summary.pdf`);
 }
 
 export type { Invoice };

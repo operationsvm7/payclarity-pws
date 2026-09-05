@@ -178,6 +178,8 @@ export type Database = {
           method: string
           notes: string
           reference: string
+          scheduled_date: string | null
+          status: "scheduled" | "paid" | null
           created_at: string
         }
         Insert: {
@@ -189,6 +191,8 @@ export type Database = {
           method?: string
           notes?: string
           reference?: string
+          scheduled_date?: string | null
+          status?: "scheduled" | "paid" | null
           created_at?: string
         }
         Update: {
@@ -200,6 +204,8 @@ export type Database = {
           method?: string
           notes?: string
           reference?: string
+          scheduled_date?: string | null
+          status?: "scheduled" | "paid" | null
           created_at?: string
         }
         Relationships: []

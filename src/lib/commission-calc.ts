@@ -20,8 +20,10 @@ export type InvoiceCalc = {
   totalCharges: number;
   totalCredits: number;
   grandTotal: number;        // approval - charges + credits - discount
-  profit: number;            // grandTotal - productCost
-  commissionableBase: number; // base used for commission % (profit or productCost)
+  profit: number;            // grandTotal - productCost (true bottom line, admin fee included)
+  adminFeeAmount: number;    // invoice-level admin fee — company overhead, not a commission cost
+  commissionProfit: number;  // profit with the admin fee added back — what compensation is based on
+  commissionableBase: number; // base used for commission % (commissionProfit or productCost)
 };
 
 export function calcInvoice(
@@ -35,13 +37,13 @@ export function calcInvoice(
     inv.saleType === "credit_card"
       ? inv.salesAmount * (inv.ccpfPercent ?? 0.035)
       : 0;
-  const adminFeePct = inv.salesAmount * (inv.adminFeePercent || 0);
+  const adminFeeAmount = inv.salesAmount * (inv.adminFeePercent || 0);
   const totalCharges =
     (inv.charges || []).reduce((s, c) => s + Number(c.amount || 0), 0) +
     (fc ? fc.adminFee + fc.defaultFee * inv.salesAmount : 0) +
     dealerFee +
     ccpf +
-    adminFeePct;
+    adminFeeAmount;
   const totalCredits = (inv.credits || []).reduce(
     (s, c) => s + Number(c.amount || 0),
     0
@@ -49,8 +51,13 @@ export function calcInvoice(
   const grandTotal =
     approvalAmount - inv.discount - totalCharges + totalCredits;
   const profit = grandTotal - (inv.productCost || 0);
+  // The admin fee is company overhead charged on top of the deal — it
+  // reduces the company's bottom line (`profit`) but must never shrink
+  // what reps/upline are paid on, so it's added back here before it
+  // becomes the base for commissions and overrides.
+  const commissionProfit = profit + adminFeeAmount;
   const commissionableBase =
-    inv.commissionBase === "product_cost" ? (inv.productCost || 0) : profit;
+    inv.commissionBase === "product_cost" ? (inv.productCost || 0) : commissionProfit;
   return {
     invoice: inv,
     financeCo: fc,
@@ -59,6 +66,8 @@ export function calcInvoice(
     totalCredits,
     grandTotal,
     profit,
+    adminFeeAmount,
+    commissionProfit,
     commissionableBase,
   };
 }
@@ -141,7 +150,9 @@ export function calcPayouts(
 
   for (const c of calced) {
     const a = c.invoice.agentId;
-    profitByAgent.set(a, (profitByAgent.get(a) || 0) + c.profit);
+    // Volume tiers and overrides are compensation, so they're keyed off
+    // commissionProfit (admin fee excluded), not the company's bottom line.
+    profitByAgent.set(a, (profitByAgent.get(a) || 0) + c.commissionProfit);
     baseByAgent.set(a, (baseByAgent.get(a) || 0) + c.commissionableBase);
     advanceByAgent.set(a, (advanceByAgent.get(a) || 0) + (c.invoice.advanceApplied || 0));
     specialByAgent.set(a, (specialByAgent.get(a) || 0) + (c.invoice.specialDeductions || 0));

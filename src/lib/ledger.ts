@@ -77,7 +77,11 @@ export function buildWallet(
   allFinanceCompanies?: FinanceCompany[]
 ): AgentWallet {
   const agentPayments = payments.filter((p) => p.agentId === agent.id);
-  const totalPaid = agentPayments.reduce((s, p) => s + p.amount, 0);
+  // A "scheduled" payment is a promise, not money sent yet — don't count it
+  // as paid until it's actually disbursed.
+  const totalPaid = agentPayments
+    .filter((p) => p.status !== "scheduled")
+    .reduce((s, p) => s + p.amount, 0);
 
   const entries: Omit<LedgerEntry, "balance">[] = [];
 
@@ -185,12 +189,15 @@ export function buildWallet(
   }
 
   for (const p of agentPayments) {
+    const scheduled = p.status === "scheduled";
     entries.push({
       date: p.date,
       type: "payment",
-      description: `Payment ${p.reference ? "#" + p.reference : ""} ${p.method ? "(" + p.method + ")" : ""}`.trim(),
+      description: `${scheduled ? "Scheduled payment" : "Payment"} ${p.reference ? "#" + p.reference : ""} ${p.method ? "(" + p.method + ")" : ""}${scheduled && p.scheduledDate ? ` — due ${p.scheduledDate}` : ""}`.trim(),
       debit: 0,
-      credit: p.amount,
+      // A scheduled payment is a promise, not money sent yet — it doesn't
+      // reduce the running balance until it's actually disbursed.
+      credit: scheduled ? 0 : p.amount,
       refId: p.id,
     });
   }
@@ -368,6 +375,10 @@ export function explainInvoice(
     lines.push(
       `Al restar el costo del producto, el profit es ${m(c.profit)}.`
     );
+    if (c.adminFeeAmount > 0)
+      lines.push(
+        `El admin fee (${m(c.adminFeeAmount)}) es un gasto de la empresa y no reduce la comisión: la base de comisión es ${m(c.commissionProfit)}.`
+      );
     const baseLabelEs = inv.commissionBase === "product_cost" ? "el costo del producto" : "el profit";
     lines.push(
       `La comisión se calcula sobre ${baseLabelEs} (base = ${m(c.commissionableBase)}).`
@@ -452,6 +463,10 @@ export function explainInvoice(
   lines.push(
     `After subtracting product cost, profit is ${m(c.profit)}.`
   );
+  if (c.adminFeeAmount > 0)
+    lines.push(
+      `The admin fee (${m(c.adminFeeAmount)}) is a company expense and does not reduce commission: the commission base is ${m(c.commissionProfit)}.`
+    );
   const baseLabelEn = inv.commissionBase === "product_cost" ? "product cost" : "profit";
   lines.push(
     `Commission % is applied to ${baseLabelEn} (base = ${m(c.commissionableBase)}).`
@@ -662,7 +677,7 @@ export function computeInvolved(
   const rows: InvolvedRow[] = upline.map((u) => ({
     name: u.agent.name,
     role: `Override L${u.level} (${((overrideMap.get(u.level) || 0) * 100).toFixed(2)}%)`,
-    amount: Math.max(0, c.profit) * (overrideMap.get(u.level) || 0),
+    amount: Math.max(0, c.commissionProfit) * (overrideMap.get(u.level) || 0),
   }));
 
   if (splits.length > 0) {

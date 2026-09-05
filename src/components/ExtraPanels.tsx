@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -32,6 +33,7 @@ import {
 import {
   buildAllWallets,
   computeCoachInsight,
+  computeInvolved,
   type AgentWallet,
   type LedgerEntry,
 } from "@/lib/ledger";
@@ -215,19 +217,28 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
   const cur = s.company.currency;
   const p = wallet.payout;
 
-  const [pay, setPay] = useState({ amount: 0, method: "Bank transfer", reference: "", notes: "" });
+  const [pay, setPay] = useState({
+    amount: 0, method: "Bank transfer", reference: "", notes: "",
+    scheduled: false, scheduledDate: s.nextPayoutDate,
+  });
   const recordPayment = () => {
     if (!pay.amount || pay.amount <= 0) return toast.error(t("wallet_enter_amount"));
     s.addPayment({
       agentId: wallet.agent.id,
-      date: new Date().toISOString().slice(0, 10),
+      date: pay.scheduled ? pay.scheduledDate : new Date().toISOString().slice(0, 10),
       amount: pay.amount,
       method: pay.method,
       reference: pay.reference,
       notes: pay.notes,
+      status: pay.scheduled ? "scheduled" : "paid",
+      scheduledDate: pay.scheduled ? pay.scheduledDate : undefined,
     });
-    setPay({ amount: 0, method: "Bank transfer", reference: "", notes: "" });
-    toast.success(t("wallet_payment_recorded"));
+    setPay({ amount: 0, method: "Bank transfer", reference: "", notes: "", scheduled: false, scheduledDate: s.nextPayoutDate });
+    toast.success(pay.scheduled ? (s.language === "es" ? "Pago programado" : "Payment scheduled") : t("wallet_payment_recorded"));
+  };
+  const markAsPaid = (id: string) => {
+    s.updatePayment(id, { status: "paid", date: new Date().toISOString().slice(0, 10) });
+    toast.success(s.language === "es" ? "Marcado como pagado" : "Marked as paid");
   };
 
   const downloadCommissionPDF = () => {
@@ -289,7 +300,7 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => buildSaleAndDownload(c, s.company, wallet.agent.name, wallet.payout)}
+                        onClick={() => buildSaleAndDownload(c, s.company, wallet.agent.name, wallet.payout, computeInvolved(c.invoice, c, s.agents, s.overrides, s.language))}
                       >
                         PDF
                       </Button>
@@ -375,9 +386,27 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
           <div className="flex items-end">
             <Button onClick={recordPayment} className="w-full">
               <Plus className="w-4 h-4 mr-2" />
-              {t("wallet_record")}
+              {pay.scheduled ? (s.language === "es" ? "Programar" : "Schedule") : t("wallet_record")}
             </Button>
           </div>
+        </div>
+        )}
+        {canRecordPayment && (
+        <div className="flex items-center gap-3 mb-4 -mt-1">
+          <div className="flex items-center gap-2">
+            <Switch checked={pay.scheduled} onCheckedChange={(v) => setPay({ ...pay, scheduled: v })} />
+            <Label className="text-xs text-muted-foreground">
+              {s.language === "es" ? "Programar para después (aún no se ha pagado)" : "Schedule for later (not paid yet)"}
+            </Label>
+          </div>
+          {pay.scheduled && (
+            <Input
+              type="date"
+              className="w-auto h-8"
+              value={pay.scheduledDate}
+              onChange={(e) => setPay({ ...pay, scheduledDate: e.target.value })}
+            />
+          )}
         </div>
         )}
         {wallet.payments.length === 0 ? (
@@ -391,17 +420,30 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
                 <th>{t("lbl_method")}</th>
                 <th>{t("lbl_reference")}</th>
                 <th className="text-right">{t("lbl_amount")}</th>
+                <th>{s.language === "es" ? "Estado" : "Status"}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {wallet.payments.map((py) => (
+              {wallet.payments.map((py) => {
+                const scheduled = py.status === "scheduled";
+                return (
                 <tr key={py.id} className="border-t border-border/60">
                   <td className="py-1 font-mono text-xs">{py.date}</td>
                   <td>{py.method}</td>
                   <td className="text-muted-foreground">{py.reference || "—"}</td>
                   <td className="text-right font-mono">{fmtMoney(py.amount, cur)}</td>
-                  <td className="text-right">
+                  <td>
+                    <Badge variant={scheduled ? "outline" : "default"}>
+                      {scheduled ? (s.language === "es" ? "Programado" : "Scheduled") : (s.language === "es" ? "Pagado" : "Paid")}
+                    </Badge>
+                  </td>
+                  <td className="text-right whitespace-nowrap">
+                    {canRecordPayment && scheduled && (
+                      <Button variant="ghost" size="sm" onClick={() => markAsPaid(py.id)}>
+                        {s.language === "es" ? "Marcar pagado" : "Mark paid"}
+                      </Button>
+                    )}
                     {canRecordPayment && (
                       <Button variant="ghost" size="icon" onClick={() => s.removePayment(py.id)}>
                         <Trash2 className="w-4 h-4" />
@@ -409,7 +451,8 @@ function WalletDetail({ wallet, canRecordPayment = true }: { wallet: AgentWallet
                     )}
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1003,6 +1046,7 @@ function ApprovalsQueuePanel() {
   const [filter, setFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
   const [adminMsg, setAdminMsg] = useState<Record<string, string>>({});
+  const [editedValues, setEditedValues] = useState<Record<string, string>>({});
 
   const STATUS_LABEL: Record<string, string> = {
     submitted: t("disp_filter_submitted"),
@@ -1200,38 +1244,58 @@ function ApprovalsQueuePanel() {
                       </div>
                     )}
 
-                    {/* Requested change */}
-                    {d.requestedChange && (
-                      <p className="text-xs mt-2 flex items-center gap-1 flex-wrap">
-                        <span className="text-muted-foreground">{t("disp_suggested")}</span>
-                        <span className="font-mono bg-muted rounded px-1">{d.requestedChange.field}</span>
-                        <span className="text-muted-foreground">{d.requestedChange.fromValue}</span>
-                        <span>→</span>
-                        <span className="font-medium">{d.requestedChange.toValue}</span>
-                        {inv && (
-                          <Button
-                            variant="link"
-                            size="sm"
-                            className="h-auto px-1 py-0 text-xs"
-                            onClick={() => {
-                              const f = d.requestedChange!.field as keyof Invoice;
-                              const num = ["salesAmount", "productCost", "approvalPercent", "discount"];
-                              const v: any = num.includes(f as string)
-                                ? Number(d.requestedChange!.toValue)
-                                : d.requestedChange!.toValue;
-                              if (num.includes(f as string) && Number.isNaN(v)) {
-                                toast.error(t("disp_not_numeric"));
-                                return;
-                              }
-                              s.updateInvoice(inv.id, { [f]: v } as any);
-                              toast.success(t("disp_change_applied"));
-                            }}
-                          >
-                            Apply
-                          </Button>
-                        )}
-                      </p>
-                    )}
+                    {/* Requested change — admin can edit the value before applying it,
+                        instead of only accepting exactly what the rep asked for. */}
+                    {d.requestedChange && (() => {
+                      const num = ["salesAmount", "productCost", "approvalPercent", "discount"];
+                      const isNum = num.includes(d.requestedChange!.field as string);
+                      const editedRaw = editedValues[d.id];
+                      return (
+                        <p className="text-xs mt-2 flex items-center gap-1 flex-wrap">
+                          <span className="text-muted-foreground">{t("disp_suggested")}</span>
+                          <span className="font-mono bg-muted rounded px-1">{d.requestedChange!.field}</span>
+                          <span className="text-muted-foreground">{d.requestedChange!.fromValue}</span>
+                          <span>→</span>
+                          {isNum ? (
+                            <Input
+                              className="h-6 w-24 text-xs"
+                              type="text"
+                              inputMode="decimal"
+                              value={editedRaw ?? String(d.requestedChange!.toValue)}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                if (raw !== "" && raw !== "-" && !/^-?\d*\.?\d*$/.test(raw)) return;
+                                setEditedValues((p) => ({ ...p, [d.id]: raw }));
+                              }}
+                            />
+                          ) : (
+                            <span className="font-medium">{d.requestedChange!.toValue}</span>
+                          )}
+                          {inv && (
+                            <Button
+                              variant="link"
+                              size="sm"
+                              className="h-auto px-1 py-0 text-xs"
+                              onClick={() => {
+                                const f = d.requestedChange!.field as keyof Invoice;
+                                const v: any = isNum
+                                  ? Number(editedRaw ?? d.requestedChange!.toValue)
+                                  : d.requestedChange!.toValue;
+                                if (isNum && Number.isNaN(v)) {
+                                  toast.error(t("disp_not_numeric"));
+                                  return;
+                                }
+                                s.updateInvoice(inv.id, { [f]: v } as any);
+                                s.setRequestStatus(d.id, "approved", "admin", d.adminNotes || "");
+                                toast.success(t("disp_change_applied"));
+                              }}
+                            >
+                              {s.language === "es" ? "Aprobar y aplicar" : "Approve & apply"}
+                            </Button>
+                          )}
+                        </p>
+                      );
+                    })()}
 
                     {/* Admin notes textarea */}
                     <Textarea
@@ -1335,7 +1399,8 @@ function ApprovalsQueuePanel() {
                             variant="ghost"
                             onClick={() => {
                               const c = calcInvoice(inv, s.financeCompanies);
-                              const doc = buildSaleInvoicePDF(c, s.company, agName);
+                              const rows = computeInvolved(inv, c, s.agents, s.overrides, s.language);
+                              const doc = buildSaleInvoicePDF(c, s.company, agName, null, rows);
                               doc.save(`${inv.number}_recalculated.pdf`);
                               toast.success(t("disp_pdf_regen"));
                             }}

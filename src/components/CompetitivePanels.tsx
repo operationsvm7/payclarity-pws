@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, Wand2, Upload, CheckCircle2, ArrowRight, ArrowLeft, Settings2, Sparkles, FileDown } from "lucide-react";
 import { useStore, type AdjustmentKind, type Adjustment, type Invoice } from "@/lib/commission-store";
 import { fmtMoney, calcInvoice, calcPayouts } from "@/lib/commission-calc";
-import { labelFor, buildWallet } from "@/lib/ledger";
+import { labelFor, buildWallet, computeInvolved } from "@/lib/ledger";
 import { INVOICE_TEMPLATES, buildSaleAndDownload } from "@/lib/generate-invoices";
 import { INDUSTRY_TEMPLATES } from "@/lib/templates";
 import { useT } from "@/lib/i18n";
@@ -469,7 +469,8 @@ export function SetupWizard({ onClose }: { onClose: () => void }) {
       const agents = useStore.getState().agents;
       const c = calcInvoice(inv, fcs);
       const agentName = agents.find((a) => a.id === inv!.agentId)?.name || "—";
-      buildSaleAndDownload(c, company, agentName);
+      const rows = computeInvolved(inv, c, agents, useStore.getState().overrides, s.language);
+      buildSaleAndDownload(c, company, agentName, null, rows);
       toast.success(t("success_pdf"));
     } catch (e: any) {
       toast.error(e?.message || t("err_pdf"));

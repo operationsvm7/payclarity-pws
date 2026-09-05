@@ -224,6 +224,8 @@ export type Payment = {
   method: string;
   notes: string;
   reference: string;
+  scheduledDate?: string;
+  status?: "scheduled" | "paid";
 };
 
 export type RequestStatus =
@@ -391,6 +393,7 @@ type State = {
   removeInvoice: (id: string) => void;
 
   addPayment: (p: Omit<Payment, "id">) => void;
+  updatePayment: (id: string, patch: Partial<Payment>) => void;
   removePayment: (id: string) => void;
 
   addDispute: (
@@ -931,6 +934,9 @@ export const useStore = create<State>()(
           }],
         };
       }),
+      updatePayment: (id, patch) => set((s) => ({
+        payments: s.payments.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+      })),
       removePayment: (id) => set((s) => ({ payments: s.payments.filter((x) => x.id !== id) })),
 
       addDispute: (d) => {
