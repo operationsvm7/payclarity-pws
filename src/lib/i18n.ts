@@ -244,7 +244,7 @@ const D: Dict = {
   lbl_pending_advance: { es: "Balance pendiente del advance", en: "Pending advance balance" },
   lbl_commission_level: { es: "Nivel de comisión del vendedor (auto)", en: "Commission level (auto)" },
   lbl_commission_base: { es: "Comisión calculada sobre", en: "Commission % applied to" },
-  lbl_commission_override: { es: "Override comisión % (admin)", en: "Commission % override (admin)" },
+  lbl_commission_override: { es: "Override comisión (admin)", en: "Commission override (admin)" },
   lbl_paid_flag: { es: "Pagado", en: "Paid" },
   lbl_admin_only: { es: "(solo admin)", en: "(admin only)" },
   lbl_fee_pct: { es: "Tarifa %", en: "Fee %" },
