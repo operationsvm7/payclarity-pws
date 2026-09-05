@@ -1027,8 +1027,20 @@ function AgentsPanel({ profileAvatars }: { profileAvatars: Record<string, string
                   <td className="py-2">
                     <AgentAvatar name={a.name} avatarUrl={profileAvatars[a.email] ?? a.avatarUrl} size={30} onClick={() => pickAvatarFile(a.id, updateAgent)} />
                   </td>
-                  <td className="py-2 font-medium">{a.name}</td>
-                  <td className="text-muted-foreground">{a.email || "—"}</td>
+                  <td className="py-2 font-medium">
+                    <Input
+                      className="h-8 w-32"
+                      value={a.name}
+                      onChange={(e) => updateAgent(a.id, { name: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <Input
+                      className="h-8 w-40"
+                      value={a.email}
+                      onChange={(e) => updateAgent(a.id, { email: e.target.value })}
+                    />
+                  </td>
                   <td>
                     <Select value={a.sponsorId || "none"} onValueChange={(v) => updateAgent(a.id, { sponsorId: v === "none" ? null : v })}>
                       <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
@@ -1227,7 +1239,7 @@ function blankInvoice(): Omit<Invoice, "id" | "number"> {
     paid: false,
     saleType: "finance",
     ccpfPercent: 0.035,
-    adminFeePercent: 0,
+    adminFeePercent: 0.01,
     dealerFee: undefined,
     approvedAdvanceAmount: 0,
     pendingAdvanceBalance: 0,
@@ -1412,7 +1424,8 @@ function InvoicesPanel() {
   };
 
   const save = () => {
-    const payload = { ...draft, agentId: isAdmin ? draft.agentId : myAgentId || draft.agentId };
+    // Admin fee is fixed policy, not a per-invoice choice — always 1%.
+    const payload = { ...draft, agentId: isAdmin ? draft.agentId : myAgentId || draft.agentId, adminFeePercent: 0.01 };
     if (!payload.agentId) return toast.error(t("err_pick_rep"));
     if (!payload.customerName.trim()) return toast.error(t("err_customer_required"));
     if (payload.salesAmount < 0 || payload.productCost < 0) return toast.error(t("err_amounts_negative"));
@@ -1485,34 +1498,33 @@ function InvoicesPanel() {
           <div><Label>{t("lbl_salesperson")}</Label>
             <Select value={draft.agentId} onValueChange={(v) => {
               const ag = s.agents.find((a) => a.id === v);
-              // Pre-fill the commission override from this rep's own fixed
-              // rule, or — if they don't have one — their position's fixed
-              // payout, so admin sees up front what this invoice will pay
-              // them (still editable). Percent-based reps are left as-is.
-              let fixedDefault: number | null = null;
-              if (ag?.commissionMode === "fixed" && ag.fixedCommissionAmount != null) {
-                fixedDefault = ag.fixedCommissionAmount;
-              } else if (ag && ag.commissionPercent == null) {
-                const pos = s.positions.find((p) => p.name === ag.level && p.active);
-                if (pos && pos.fixedPayout > 0) fixedDefault = pos.fixedPayout;
-              }
-              // Always clear any override left over from the previous rep.
-              // commissionableBase depends only on sales amount/product cost,
-              // not agentId, so it's safe to convert the fixed default right
-              // now if those are already filled in; otherwise the existing
-              // effect (keyed on commissionableBase) applies it once they are.
+              // Costo de producto ← this rep's own commission rule (Equipo tab).
+              const productCostDefault =
+                ag?.commissionMode === "fixed" && ag.fixedCommissionAmount != null
+                  ? ag.fixedCommissionAmount
+                  : undefined;
+              // Override comisión (Admin) ← their position's Pago Fijo (USD)
+              // (Compensación tab) — always a flat $ amount, still editable.
+              const pos = s.positions.find((p) => p.name === ag?.level && p.active);
+              const overrideDefault = pos && pos.fixedPayout > 0 ? pos.fixedPayout : null;
+              const nextProductCost = productCostDefault ?? draft.productCost;
+              // commissionableBase depends on sales amount/product cost, not
+              // agentId, so it's safe to convert the override default right
+              // now using the (possibly just-changed) product cost; otherwise
+              // the existing effect (keyed on commissionableBase) applies it
+              // once sales amount/product cost are filled in.
+              const base = draft.salesAmount * (draft.approvalPercent || 0) - nextProductCost;
               setDraft({
                 ...draft,
                 agentId: v,
                 commissionLevel: ag?.level ?? draft.commissionLevel ?? "",
+                productCost: nextProductCost,
                 commissionPercentOverride:
-                  fixedDefault != null && live.commissionableBase > 0
-                    ? fixedDefault / live.commissionableBase
-                    : undefined,
+                  overrideDefault != null && base > 0 ? overrideDefault / base : undefined,
               });
               setOverrideMode("amount");
               setOverridePercentText("");
-              setOverrideAmountText(fixedDefault != null ? String(fixedDefault) : "");
+              setOverrideAmountText(overrideDefault != null ? String(overrideDefault) : "");
             }} disabled={!isAdmin}>
               <SelectTrigger><SelectValue placeholder={t("lbl_select_ellipsis")} /></SelectTrigger>
               <SelectContent>
@@ -1609,7 +1621,7 @@ function InvoicesPanel() {
             />
           </div>
           <div><Label>{t("lbl_admin_fee_pct")}</Label>
-            <PercentField step="0.1" value={draft.adminFeePercent ?? 0} onChange={(n) => setDraft({ ...draft, adminFeePercent: n })} />
+            <PercentField step="0.1" value={0.01} onChange={() => {}} disabled className="opacity-50" />
           </div>
           <div><Label>{t("lbl_dealer_fee")}</Label>
             <Input type="number" step="0.01"
@@ -1637,81 +1649,34 @@ function InvoicesPanel() {
             </Select>
           </div>
           {isAdmin && (() => {
-            const ag = s.agents.find((a) => a.id === draft.agentId);
-            const defaultPct = ag?.commissionPercent;
-            const defaultLabel = defaultPct != null
-              ? `${(defaultPct * 100).toFixed(2)}%`
-              : t("lbl_volume_tier");
             return (
               <div><Label>
                 {t("lbl_commission_override")}
               </Label>
                 <div className="flex gap-2">
-                  <Select
-                    value={overrideMode}
-                    onValueChange={(v: "percent" | "amount") => {
-                      setOverrideMode(v);
-                      if (v === "amount") {
-                        setOverrideAmountText(
-                          draft.commissionPercentOverride != null && live.commissionableBase > 0
-                            ? (draft.commissionPercentOverride * live.commissionableBase).toFixed(2)
-                            : ""
-                        );
-                      } else {
-                        setOverridePercentText(
-                          draft.commissionPercentOverride != null
-                            ? (draft.commissionPercentOverride * 100).toFixed(2)
-                            : ""
-                        );
+                  <span className="w-20 shrink-0 inline-flex items-center justify-center rounded-md border border-input bg-muted text-sm text-muted-foreground">
+                    {s.company.currency}
+                  </span>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder={s.language === "es" ? "Monto fijo" : "Flat amount"}
+                    value={overrideAmountText}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw !== "" && raw !== "-" && !/^-?\d*\.?\d*$/.test(raw)) return;
+                      setOverrideAmountText(raw);
+                      if (raw === "" || raw === "-") {
+                        setDraft({ ...draft, commissionPercentOverride: undefined });
+                        return;
+                      }
+                      const n = Number(raw);
+                      if (Number.isNaN(n)) return;
+                      if (live.commissionableBase > 0) {
+                        setDraft({ ...draft, commissionPercentOverride: n / live.commissionableBase });
                       }
                     }}
-                  >
-                    <SelectTrigger className="w-20 shrink-0"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="percent">%</SelectItem>
-                      <SelectItem value="amount">{s.company.currency}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {overrideMode === "percent" ? (
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder={`Default: ${defaultLabel}`}
-                      value={overridePercentText}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (raw !== "" && raw !== "-" && !/^-?\d*\.?\d*$/.test(raw)) return;
-                        setOverridePercentText(raw);
-                        if (raw === "" || raw === "-") {
-                          setDraft({ ...draft, commissionPercentOverride: undefined });
-                          return;
-                        }
-                        const n = Number(raw);
-                        if (!Number.isNaN(n)) setDraft({ ...draft, commissionPercentOverride: n / 100 });
-                      }}
-                    />
-                  ) : (
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder={s.language === "es" ? "Monto fijo" : "Flat amount"}
-                      value={overrideAmountText}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (raw !== "" && raw !== "-" && !/^-?\d*\.?\d*$/.test(raw)) return;
-                        setOverrideAmountText(raw);
-                        if (raw === "" || raw === "-") {
-                          setDraft({ ...draft, commissionPercentOverride: undefined });
-                          return;
-                        }
-                        const n = Number(raw);
-                        if (Number.isNaN(n)) return;
-                        if (live.commissionableBase > 0) {
-                          setDraft({ ...draft, commissionPercentOverride: n / live.commissionableBase });
-                        }
-                      }}
-                    />
-                  )}
+                  />
                 </div>
               </div>
             );
@@ -1762,16 +1727,22 @@ function InvoicesPanel() {
               : ag?.commissionPercent ?? 0;
           const personal = Math.max(0, live.commissionableBase) * rate;
           const overrideMap = new Map(s.overrides.map((o) => [o.level, o.rate]));
-          // Build downline chain (children of selected agent recursively)
-          const childrenOf = (id: string) => s.agents.filter((a) => a.sponsorId === id);
-          const collect = (id: string, lvl: number, out: { name: string; level: number; rate: number }[] = []) => {
-            for (const k of childrenOf(id)) {
-              out.push({ name: k.name, level: lvl, rate: overrideMap.get(lvl) || 0 });
-              collect(k.id, lvl + 1, out);
-            }
-            return out;
-          };
-          const downline = draft.agentId ? collect(draft.agentId, 1) : [];
+          // Overrides flow UPWARD: it's the seller's sponsor chain that earns
+          // an override on this sale, not the seller's own downline.
+          const upline: { name: string; level: number; rate: number }[] = [];
+          const visited = new Set<string>([draft.agentId]);
+          let cursor = s.agents.find((a) => a.id === draft.agentId);
+          let lvl = 1;
+          while (cursor?.sponsorId && !visited.has(cursor.sponsorId)) {
+            const sponsor = s.agents.find((a) => a.id === cursor!.sponsorId);
+            if (!sponsor) break;
+            visited.add(sponsor.id);
+            upline.push({ name: sponsor.name, level: lvl, rate: overrideMap.get(lvl) || 0 });
+            cursor = sponsor;
+            lvl++;
+          }
+          upline.reverse(); // topmost sponsor first
+          const downline = upline;
           const overrideTotal = downline.reduce(
             (sum, d) => sum + Math.max(0, live.commissionProfit) * d.rate,
             0
